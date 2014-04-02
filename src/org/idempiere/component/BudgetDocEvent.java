@@ -79,7 +79,7 @@ public class BudgetDocEvent extends AbstractEventHandler{
 		if (budgetCONFIGinstance == null) {
 			log.info("<<BUDGET>> RULES ONE-TIME SETTING STARTED");
 			oneTimeSetupRevenue(event);
-			if (isProrata) prorata = " PRORATA";
+			if (isProrata) prorata = " (PRORATA) ";
 			log.info("<<BUDGET>> RULES ONE-TIME SETTING DONE");
 			}
  
@@ -219,7 +219,8 @@ public class BudgetDocEvent extends AbstractEventHandler{
 				//IF ISMONTHONMONTH TAKE SAME PERIODS FROM PREVUOUS YEARS AND APPLY AVERAGE/PRGRESSIVE
 				if (!percent.equals(Env.ZERO)) 
 					if (yearRevenue.multiply(percent).divide(Env.ONEHUNDRED,2).compareTo(totalPurchases)<0) {
-						throwBudgetExceedMessage(percent.setScale(2,BigDecimal.ROUND_UP).toString()+"% OF "+yearRevenue.toString()+" REVENUE, PURCHASES ",totalPurchases, matches);			 
+						BigDecimal diff = yearRevenue.multiply(percent).divide(Env.ONEHUNDRED,2).subtract(totalPurchases);
+						throwBudgetExceedMessage(diff.setScale(2,BigDecimal.ROUND_UP).toString()+", "+percent.setScale(2,BigDecimal.ROUND_UP).toString()+"% OF "+yearRevenue.setScale(2,BigDecimal.ROUND_UP).toString()+" REVENUE, PURCHASES ",totalPurchases, matches);			 
 					} else log.fine("PERCENT WITHIN BUDGET "+event);
 			
 				if (!budgetAmount.equals(Env.ZERO)) {
@@ -277,7 +278,7 @@ public class BudgetDocEvent extends AbstractEventHandler{
 				totFactAmt = totFactAmt.add(journalLine.getAmtSourceCr());
 				if (!percent.equals(Env.ZERO)) 
 					if (yearRevenue.multiply(percent).divide(Env.ONEHUNDRED,2).compareTo(totFactAmt)<0) {
-						throwBudgetExceedMessage(percent.setScale(2,BigDecimal.ROUND_UP).toString()+"% OF "+yearRevenue+prorata+" REVENUE FOR ACCOUNT "
+						throwBudgetExceedMessage(percent.setScale(2,BigDecimal.ROUND_UP).toString()+"% OF "+yearRevenue.setScale(2,BigDecimal.ROUND_UP)+prorata+" REVENUE FOR ACCOUNT "
 								+journalLine.getAccountElementValue().toString()+", FACTS ", totFactAmt, matches);			 
 					} else log.fine("PERCENT WITHIN BUDGET "+event);
 				if (!budgetAmount.equals(Env.ZERO)) {
@@ -427,7 +428,7 @@ public class BudgetDocEvent extends AbstractEventHandler{
 	
 	// UTILS
 	private void throwBudgetExceedMessage(String description, BigDecimal totalAmt, List<KeyNamePair> matches) {
-		addErrorMessage(event,"BUDGET LIMIT IS "+prorata+description+" TOTAL+THIS: " + totalAmt);		
+		addErrorMessage(event,"EXCEED BUDGET BY "+prorata+description+" TOTAL+THIS: " + totalAmt);		
 	}
 
 	private void setPo(PO eventPO) {
