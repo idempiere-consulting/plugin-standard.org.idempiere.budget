@@ -157,7 +157,8 @@ public class BudgetDocEvent extends AbstractEventHandler{
 		cal.add(Calendar.YEAR, +1-yearsRange);
 		String startYear = yearFormat.format(cal.getTime());
 		BigDecimal baseAmt = getBaseAmtFromFacts(0, true, MORE_EQUAL, startYear);
-		
+		log.fine("CAL : "+cal.toString());
+		log.info("Revenue Setting - YearsRange "+yearsRange+", SumAmt = "+baseAmt);
 		//REVENUE AVERAGE ACROSS RANGE OF YEARS
 //		if (budgetCONFIGinstance.getBudgetTrend().equals("A") && yearsRange < 100) { -- DEFAULT VALUE
 		BigDecimal sumAmt= baseAmt; //FOR LATER FORMULA USE
@@ -258,7 +259,7 @@ public class BudgetDocEvent extends AbstractEventHandler{
 					budgetAmount = matchedBudgetLine.getAmtSourceCr();
 					//IF PRORATA, DIVIDE BY 12 MONTHS
 					if (isProrata && matchedBudgetLine.getC_Period_ID()==0) {//PRORATA NOT FOR SPECIFIC PERIOD  
-						budgetAmount.divide(new BigDecimal(12),2);			//NOR FOR PERCENTAGE
+						budgetAmount = budgetAmount.divide(new BigDecimal(12),2);			//NOR FOR PERCENTAGE
 						prorata = " (PRORATA) ";
 					}
 						
@@ -356,7 +357,7 @@ public class BudgetDocEvent extends AbstractEventHandler{
 			if (matchedBudgetLine.getAmtSourceCr().compareTo(Env.ZERO)>0){
 				budgetAmount = matchedBudgetLine.getAmtSourceCr();	//IF PRORATA, DIVIDE BY 12 MONTHS
 				if (isProrata && matchedBudgetLine.getC_Period_ID()==0) {//BUT NOT FOR PERIOD SPECIFIC BUDGET
-					budgetAmount.divide(new BigDecimal(12),2);			//NOR FOR PERCENTAGE
+					budgetAmount = budgetAmount.divide(new BigDecimal(12),2);			//NOR FOR PERCENTAGE
 					prorata = " (PRORATA) ";
 				}
 			}
