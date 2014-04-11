@@ -79,47 +79,4 @@ public class BudgetLine extends MJournalLine {
     public void setC_Period_ID(int id) {
     	budgetLine.setC_Period_ID(id);
     }
-    
-    
-	/*
-	 * APPLY MATCHES TO WHERE CLAUSE IN SEARCH OF BUDGET LINES
-	 */
-	public static  BudgetLine matchingBudgetRule(PO po, List<KeyNamePair>matches, StringBuffer whereClause) {
-		//FETCH ONLY EXACT BUDGETLINE THAT HAS DOCUMENT'S CRITERIA (EFFICIENT)
-		//WHERE CLAUSE FROM DOCUMENT'S MAIN CRITERIA
- 		MJournal budget = new Query(po.getCtx(), MJournal.Table_Name, "PostingType='B'", po.get_TrxName())
-		.setOnlyActiveRecords(true)
-		.first();	 
-		//WITH ADDED CRITERIA FIRST C_PERIOD_ID, C_BPARTNER_ID
-		Object[] params = matchesToIDs(matches);
-		if (params==null) return null;
-		
-		//ITERATE POSSIBLE MATCHES BUT RULE OUT PERIOD AND PARTNER (FOR PURCHASE) UNTIL EXACT MATCH OR NULL
-  		BudgetLine matchedLine = null;
-  		int counter = 0; //if counter incremented twice it means extra ambiguous Budget Rules for same match.
-
-  		List<BudgetLine> matchedLines = new Query(po.getCtx(), BudgetLine.Table_Name, whereClause.toString() 
-  		+" AND "+I_GL_Journal.COLUMNNAME_GL_Journal_ID+"="+budget.getGL_Journal_ID(), po.get_TrxName())
-  		.setParameters(params)
-  		.list();
-  		
-  		for (BudgetLine line:matchedLines) {
-  			if ((matches.get(0).getKey()!=line.getC_Period_ID()) && (line.getC_Period_ID()!=0)) continue;
-  			if ((po instanceof MOrder) && (matches.get(1).getKey()!=line.getC_BPartner_ID()) && (line.getC_BPartner_ID()!=0)) continue;
-  			matchedLine = line;
-  			counter++;
-  		}
-  		if (counter>1) throw new AdempiereException(counter+" AMBIGOUS BUDGET RULES FOUND = "+whereClause);
-		return matchedLine;
-	}
- 
-	public static Object[] matchesToIDs(List<KeyNamePair> matches) {
-		ArrayList<Object> params = new ArrayList<Object>();
-		for (KeyNamePair match:matches) {
-			if (match.getKey()>0)
-				params.add((new Integer(match.getID())).intValue());
-		}
-		if (params.isEmpty()) return null;
-		return params.toArray();
-	}
 }
