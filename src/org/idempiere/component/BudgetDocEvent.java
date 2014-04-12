@@ -20,11 +20,13 @@ import org.adempiere.base.event.AbstractEventHandler;
 import org.adempiere.base.event.IEventTopics;
 import org.adempiere.exceptions.AdempiereException;
 import org.compiere.model.MJournal;
+import org.compiere.model.MMessage;
+import org.compiere.model.MNote;
 import org.compiere.model.MOrder;
 import org.compiere.model.PO;
 import org.compiere.util.CLogger;
 import org.idempiere.budget.BudgetUtils;
-import org.idempiere.budget.MBudgetConfig;
+import org.idempiere.budget.MBudgetConfig; 
 import org.osgi.service.event.Event;
 
 public class BudgetDocEvent extends AbstractEventHandler{
@@ -89,13 +91,24 @@ public class BudgetDocEvent extends AbstractEventHandler{
 	}
 
 	/*
-	 * ALLOW FOR OPTION TO CONTINUE OPERATIONS
+	 * ALLOW FOR OPTION TO CONTINUE OPERATIONS BUT NOTICE WILL BE ISSUED
 	 */
 	private void handleError(String error) {
 		if (budgetCONFIGinstance.isValid())
 			throw new AdempiereException(error);
-		else
+		else {
 			log.warning(error);
+			MMessage msg = MMessage.get(po.getCtx(), "BudgetError");
+			MNote note = new MNote(po.getCtx(),
+					msg.getAD_Message_ID(),
+					po.get_ValueAsInt("CreatedBy"),
+					po.get_Table_ID(), po.get_ID(),
+					"MODEL EVENT: "+event.getProperty("event.data").toString(),
+					error,
+					po.get_TrxName());
+			note.setAD_Org_ID(po.getAD_Org_ID());
+			note.saveEx();
+		}
 	}
 
 	private void setPo(PO eventPO) {
