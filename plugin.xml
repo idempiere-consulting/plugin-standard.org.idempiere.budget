@@ -13,7 +13,7 @@
          id="org.plugin.model.Process"
          point="org.adempiere.base.Process">
       <process
-            class="org.idempiere.budget.PostBudget">
+            class="org.idempiere.budget.GenerateBudget">
       </process>
    </extension>
 
