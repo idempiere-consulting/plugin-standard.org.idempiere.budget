@@ -25,8 +25,7 @@ import org.compiere.model.MNote;
 import org.compiere.model.MOrder;
 import org.compiere.model.PO;
 import org.compiere.util.CLogger;
-import org.idempiere.budget.BudgetUtils;
-import org.idempiere.budget.MBudgetConfig; 
+import org.idempiere.budget.BudgetUtils; 
 import org.osgi.service.event.Event;
 
 public class BudgetDocEvent extends AbstractEventHandler{
@@ -34,15 +33,14 @@ public class BudgetDocEvent extends AbstractEventHandler{
 	private String trxName = "";
 	private PO po = null;
 	private String m_processMsg = ""; 
-	protected Event event;
-	protected static MBudgetConfig budgetCONFIGinstance;
+	private Event event;
 
 	@Override
 	protected void initialize() { 
 	//register EventTopics and TableNames
 		registerTableEvent(IEventTopics.DOC_BEFORE_COMPLETE, MOrder.Table_Name); 
 		registerTableEvent(IEventTopics.DOC_BEFORE_COMPLETE, MJournal.Table_Name); 
-		budgetCONFIGinstance = null;
+		BudgetUtils.budgetCONFIGinstance = null;
 		log.info("<<BUDGET>> PLUGIN INITIALIZED");
 		}
 
@@ -59,21 +57,19 @@ public class BudgetDocEvent extends AbstractEventHandler{
 		setTrxName(po.get_TrxName());
 		
 		//USING UTILS FOR REUSE BY ADEMPIERE 361 MODELVALIDATOR
-		BudgetUtils utils = new BudgetUtils(po);
-		if (budgetCONFIGinstance == null) {
+		if (BudgetUtils.budgetCONFIGinstance == null) {
 			log.info("<<BUDGET>> RULES ONE-TIME SETTING STARTED");
-			String error = utils.oneTimeSetupRevenue();
-			if (error!=null)
-				handleError(error);
-			else
-				log.info("<<BUDGET>> RULES ONE-TIME SETTING SUCCESSFUL");
+			BudgetUtils.initBudgetConfig(po);
+			BudgetUtils.reviewBudgetConfig();
+			BudgetUtils.oneTimeSetupRevenue();
+			log.info("<<BUDGET>> RULES ONE-TIME SETTING SUCCESSFUL");
 			}
  
 		//ORDER DOCUMENT VALIDATION BEFORE COMPLETE
 		if (po instanceof MOrder && IEventTopics.DOC_BEFORE_COMPLETE == type){ 
 			log.info(" topic="+event.getTopic()+" po="+po);
 			//SET VARIABLES FOR MATCHED BUDGETLINE PERCENT OR AMOUNT
-			String error = utils.checkPurchaseBudget();			
+			String error = BudgetUtils.checkPurchaseBudget(po);			
 			if (error != null)
 				handleError(error);
 			}
@@ -84,7 +80,7 @@ public class BudgetDocEvent extends AbstractEventHandler{
 		else if (po instanceof MJournal && IEventTopics.DOC_BEFORE_COMPLETE == type){
 			log.info(" topic="+event.getTopic()+" po="+po);
 			//SET VARIABLES FOR MATCHED BUDGETLINE PERCENT OR AMOUNT
-			String error = utils.checkAccountsBudget();
+			String error = BudgetUtils.checkAccountsBudget(po);
 			if (error != null)
 				handleError(error);
 		}
@@ -94,7 +90,7 @@ public class BudgetDocEvent extends AbstractEventHandler{
 	 * ALLOW FOR OPTION TO CONTINUE OPERATIONS BUT NOTICE WILL BE ISSUED
 	 */
 	private void handleError(String error) {
-		if (budgetCONFIGinstance.isValid())
+		if (BudgetUtils.budgetCONFIGinstance.isValid())
 			throw new AdempiereException(error);
 		else {
 			log.warning(error);

@@ -18,136 +18,159 @@ import org.compiere.model.PO;
 import org.compiere.model.Query;
 import org.compiere.util.CLogger;
 import org.compiere.util.Env;
-import org.compiere.util.KeyNamePair;
-import org.idempiere.component.BudgetDocEvent; 
+import org.compiere.util.KeyNamePair; 
 
-public class BudgetUtils extends BudgetDocEvent{
-	public BudgetUtils(PO po){
-		this.po = po;
+public class BudgetUtils{
+	public BudgetUtils(){
+
 	}
-	
-	private static PO po;
+	 
 	private static CLogger log = CLogger.getCLogger(BudgetUtils.class);
+	public static MBudgetConfig budgetCONFIGinstance;
 	private static BigDecimal yearRevenue = Env.ZERO;  
-	private String yearValue = "";
+	private static String yearValue = "";
 	private static int forecastMonths;
 	private static boolean isMonthOnMonth = false;
 	private static boolean isProrata = false;
-	private SimpleDateFormat yearFormat = new SimpleDateFormat("yyyy");
-	private Calendar cal = Calendar.getInstance();
-	private String prorata = "";
-	private String MORE_EQUAL = ">=";
-	private String EQUAL = "=";
+	private static SimpleDateFormat yearFormat = new SimpleDateFormat("yyyy");
+	private static Calendar cal = Calendar.getInstance();
+	private static int yearsRange = 0;
+	private static String presentYear = yearFormat.format(cal.getTime());
+	private static String startYear = "";
+	private static String pastYear = "";
+	private static String prorata = "";
+	private static String MORE_EQUAL = ">=";
+	private static String EQUAL = "=";
 	private static boolean matchedIsCreditAmt = true;
+	
 	/*
-	 * PERSIST BUDGET-CONFIG RULES
-	 * ONE TIME SETUP REVENUE OVER YEARS RANGE
+	 * LOAD CONFIG SETTINGS :
+	 * - ONE-TIME SETUP UPDATE OF REVENUE TOTAL
 	 */
-	public String oneTimeSetupRevenue() {
-		Calendar cal = Calendar.getInstance();
-		//One-time update during login of Revenue total
-		//Check BudgetConfig settings
+	public static void initBudgetConfig(PO po){
 		budgetCONFIGinstance = new Query(po.getCtx(), MBudgetConfig.Table_Name, "", po.get_TrxName())
-		.firstOnly();
-
-		//IF MONTH ON MONTH
-		if (budgetCONFIGinstance.isMonthOnMonth()) {
-			isMonthOnMonth = true;
-			//CANNOT PRORATA
-			budgetCONFIGinstance.setProrata(false);
-		}
+		.firstOnly(); 
+		//IF BUDGET MODULE NOT ACTIVE
+		if (budgetCONFIGinstance==null) throw new AdempiereException("NULL BUDGETCONFIG - YOU CAN STOP BUDGET MODULE");
+		if (!budgetCONFIGinstance.isActive()) 
+			throw new AdempiereException("NOT ACTIVE BUDGETCONFIG - YOU CAN STOP BUDGET MODULE");
+	}
+	/*
+	 * SETTERS FOR GENERATE BUDGET PROCESS - TAKING FROM PARAMS THERE
+	 */
+	public static void setInstance(BigDecimal forecastYears,boolean MonthOnMonth,BigDecimal ForecastMonths,String BudgetTrend,boolean Prorata) {
+		budgetCONFIGinstance.setGL_Budget_Forecast_Year(forecastYears);
+		budgetCONFIGinstance.setMonthOnMonth(MonthOnMonth);
+		budgetCONFIGinstance.setGL_Budget_Forecast_Month(ForecastMonths);
+		budgetCONFIGinstance.setBudgetTrend(BudgetTrend);
+		budgetCONFIGinstance.setProrata(Prorata);
+	}
+	
+	public static void reviewBudgetConfig() {
 		//IF PRORATA THEN CONFIG MONTHS VOID
 		if (budgetCONFIGinstance.isProrata()) {
 			isProrata = true;
 			isMonthOnMonth = false;
 			forecastMonths = 0;
 		}
-		//Throw exception and stop ops if there is no BudgetConfig record for reference.
-		if (budgetCONFIGinstance==null) return "NULL BUDGETCONFIG - You Should Stop This Plugin - org.idempiere.budget";
-		if (!budgetCONFIGinstance.isActive()) 
-			return "NOT ACTIVE BUDGETCONFIG - You Should Stop This Plugin - org.idempiere.budget";
-		BigDecimal budgetYear = budgetCONFIGinstance.getGL_Budget_Forecast_Year();
-		int yearsRange = budgetYear.intValue();	
-		if (budgetYear.intValue()>100) { //HARD SET REVENUE.
-				yearRevenue = budgetYear;				 
-			}
-			else if (yearsRange==0) { //NO ACTION
+		//IF MONTH ON MONTH
+		else if (budgetCONFIGinstance.isMonthOnMonth()) {
+			isMonthOnMonth = true;
+			//CANNOT PRORATA
+			budgetCONFIGinstance.setProrata(false);
+		}
+
+		Calendar cal = Calendar.getInstance();
+		yearsRange = budgetCONFIGinstance.getGL_Budget_Forecast_Year().intValue();
+		cal.add(Calendar.YEAR, -1);
+		pastYear = yearFormat.format(cal.getTime());
+		cal.add(Calendar.YEAR, +1-yearsRange);
+		startYear = yearFormat.format(cal.getTime());
+		log.fine("CAL : "+cal.toString()+" START YEAR: "+startYear+" PAST YEAR: "+pastYear+" YEARS RANGE: "+yearsRange);
+	}
+
+	/*
+	 * ONE TIME SETUP REVENUE OVER YEARS RANGE
+	 */
+	public static BigDecimal oneTimeSetupRevenue() {
+		if (yearsRange==0) { //NO ACTION
 				yearRevenue = Env.ZERO;					 
 			}
-			else {
-				yearRevenue = revenueConfig(yearsRange); //DEPENDS ON AVERAGE, LAST, 
-				if (isProrata) {
-					yearRevenue = yearRevenue.divide(new BigDecimal(12),2);
-					prorata = " (PRORATA) ";
-				}
-			}
-		
-		return null; //NO ERROR
+		else if (yearsRange<100){
+			yearRevenue = factAmtCalculate(null, MORE_EQUAL, startYear);
+			yearRevenue = applyBudgetTrend(null, yearRevenue);//OBTAIN REVENUE 4XXX AMOUNT
+			log.fine("CAL : "+cal.getTime().toString());
+			log.fine("YEARS RANGE "+yearsRange+", REVENUE AMOUNT = "+yearRevenue);				
 		}
+		return yearRevenue; 
+	}
 	
 	/*
-	 * RETURN TOTAL AMOUNT FOR REVENUE (4XXXX) ACCOUNT ELEMENTS FROM FACTACCT TABLE
-	 * OVER NUMBER OF YEARS IN RANGE, AVERAGE(A), AVERAGE+LAST(L), PROGRESSIVE(P)
+	 * 
 	 */
-	private BigDecimal revenueConfig(int yearsRange) {
-		//PERIOD IDS FROM CALENDAR YEARS
-		//GET PRESENT YEAR AND SET BACK BY BUDGETCONFIG.FORECASTYEARS
-		String presentYear = yearFormat.format(cal.getTime());
-		cal.add(Calendar.YEAR, -1);
-		String pastYear = yearFormat.format(cal.getTime());
-		cal.add(Calendar.YEAR, +1-yearsRange);
-		String startYear = yearFormat.format(cal.getTime());
-		BigDecimal baseAmt = getFactsAmts(null, MORE_EQUAL, startYear);
-		log.fine("CAL : "+cal.toString());
-		log.info("Revenue Setting - YearsRange "+yearsRange+", SumAmt = "+baseAmt);
-		//REVENUE AVERAGE ACROSS RANGE OF YEARS
-//		if (budgetCONFIGinstance.getBudgetTrend().equals("A") && yearsRange < 100) { -- DEFAULT VALUE
-		BigDecimal sumAmt= baseAmt; //FOR LATER FORMULA USE
-		BigDecimal average = baseAmt.divide(new BigDecimal(yearsRange),2);
-			baseAmt = average;
-//		}	RETAIN AS DEFAULT AND REUSE FOR PROGRESSIVE CALCULATION
-			
+	private static BigDecimal applyBudgetTrend(BudgetLine line, BigDecimal returnAmount) {		
+
+		//IF YEARS-RANGE = 1 i.e. ONLY LAST YEAR NOT SUBJECTED TO FURTHER TREND
+		if (yearsRange==1) {
+			returnAmount = factAmtCalculate(line, EQUAL, pastYear);
+			return returnAmount;
+		}
+
+		//AMOUNT AVERAGE ACROSS RANGE OF YEARS
+ 		BigDecimal sumAmt= returnAmount; //FOR LATER FORMULA USE
+		BigDecimal average = returnAmount.divide(new BigDecimal(yearsRange),2);
+		
+		//RETURN AVERAGE
+		if (budgetCONFIGinstance.getBudgetTrend().equals("A"))
+			return average;
+ 			
 		//AVERAGE + LAST = ADD AVERAGE AMOUNT IN RANGE TO LAST YEAR'S  
 		if (budgetCONFIGinstance.getBudgetTrend().equals("L")) {
-			BigDecimal lastYearAmt = getFactsAmts(null, EQUAL, pastYear);
-			baseAmt = lastYearAmt.add(average);
-			return baseAmt;
+			BigDecimal lastYearAmt = factAmtCalculate(line, EQUAL, pastYear);
+			returnAmount = lastYearAmt.add(average);
+			return returnAmount;
 		}
 		//APPLY RATE OF CHANGE OVER RANGE TO LAST YEAR'S 
 		else if (budgetCONFIGinstance.getBudgetTrend().equals("P")) { 
-			BigDecimal startYearAmt = getFactsAmts(null, EQUAL, startYear);
-			BigDecimal lastYearAmt = getFactsAmts(null, EQUAL, pastYear);
+			BigDecimal startYearAmt = factAmtCalculate(line, EQUAL, startYear);
+			BigDecimal lastYearAmt = factAmtCalculate(line, EQUAL, pastYear);
 			if (lastYearAmt.equals(Env.ZERO)) 
-				throw new AdempiereException("LAST YEAR = "+pastYear+" HAS NO REVENUE");
+				throw new AdempiereException("LAST YEAR = "+pastYear+" HAS NO AMOUNT");
 			else
 			{
 				BigDecimal rate = startYearAmt.divide(lastYearAmt,2).multiply(Env.ONEHUNDRED);
-				baseAmt = rate.multiply(lastYearAmt).add(lastYearAmt);
+				returnAmount = rate.multiply(lastYearAmt).add(lastYearAmt);
 			}
 		}
 		//ACCUMULATIVE OVER RANGE OF YEARS
 		else if (budgetCONFIGinstance.getBudgetTrend().equals("C")) {
-				baseAmt = sumAmt;
+				returnAmount = sumAmt;
 		}		
 		//YEAR TO-DATE
 		else if (budgetCONFIGinstance.getBudgetTrend().equals("T")) {
-			baseAmt = getFactsAmts(null, EQUAL, presentYear);
+			returnAmount = factAmtCalculate(null, EQUAL, presentYear);
 		}		
-		
-		return baseAmt;
+		if (isProrata) {
+			returnAmount = returnAmount.divide(new BigDecimal(12),2);
+			prorata = "(PRORATA) ";
+		}
+		return returnAmount;
 	}
 	/*
 	 * GET TOTAL AMOUNT FOR ACCOUNT ELEMENT FROM FACTACCT TABLE
 	 * OVER NUMBER OF YEARS IN RANGE
 	 * APPLY RULES, IF MONTHS THEN PERIOD IN (<REPLACE WITH PERIODS ASCERTAINED FOR MONTH2MONTH>(EXTERNAL PROCESS)
 	 */
-	private BigDecimal getFactsAmts(BudgetLine line, String operand, String yearValue) {
+	private static BigDecimal factAmtCalculate(BudgetLine line, String operand, String yearValue) {
 		StringBuffer whereClause = new StringBuffer();
-				
+		PO po = null;
 		Object[] params = {yearValue};
-		if (line==null) 
+		if (line==null) {
+			po = budgetCONFIGinstance;
 			whereClause = new StringBuffer("Account_ID IN (Select C_ElementValue_ID FROM C_ElementValue WHERE Value Like '4%') "); 
+		}
 		else {//SWAP YEAR REVENUE LOGIC WITH ACCOUNTING ELEMENT LOGIC
+			po = line;
 			whereClause = new StringBuffer("ACCOUNT_ID = ? AND POSTINGTYPE = 'A' ");
 			params = new Object[]{line.getAccount_ID(),yearValue};
 		}
@@ -156,20 +179,22 @@ public class BudgetUtils extends BudgetDocEvent{
 		List<MFactAcct> facts = new Query(po.getCtx(), MFactAcct.Table_Name, whereClause.toString(), po.get_TrxName())
 		.setParameters(params)
 		.list();
-		BigDecimal baseAmt = Env.ZERO;
+		BigDecimal returnAmount = Env.ZERO;
 		if (facts.isEmpty()) return Env.ZERO;
 		
 		for (MFactAcct fact:facts) {
-			baseAmt = baseAmt.add(getAmtSource(fact, null));
+			returnAmount = returnAmount.add(getAmtSource(fact, null));
 		}
-		if (baseAmt.equals(Env.ZERO)) return Env.ZERO;
-		
-		return baseAmt;
+		if (returnAmount.equals(Env.ZERO)) return Env.ZERO;
+
+		log.fine(" CALCULATED AMOUNT FROM ACCOUNTING FACTS = "+returnAmount+" FOR BUDGETLINE: "+line);
+		return returnAmount;
  	}
+
 	/*
 	 * HELPER METHOD TO RETURN AMOUNT EITHER CREDIT OR DEBIT SIDE; FACT, JOURNALLINE OR BUDGETLINE
 	 */
-	private BigDecimal getAmtSource(MFactAcct fact, MJournalLine jline) {
+	private static BigDecimal getAmtSource(MFactAcct fact, MJournalLine jline) {
 		if (fact!=null) {
 			if (matchedIsCreditAmt)
 				return fact.getAmtSourceCr();
@@ -190,12 +215,12 @@ public class BudgetUtils extends BudgetDocEvent{
 	 * USE MATCHES/WHERECLAUSE CONSTRUCT FROM PERIOD OR ACCOUNT-ID,PROJECT,ACTIVITY,CAMPAIGN,BPARTNER
 	 * APPLY BUDGET-CONFIG RULES TO BUDGETAMOUNT COMPARE TO TOTALPURCHASES FOR THE YEAR.
 	 */
-	public String checkPurchaseBudget() {
+	public static String checkPurchaseBudget(PO po) {
 		BigDecimal percent = Env.ZERO;
 		BigDecimal budgetAmount = Env.ZERO;
 		
 		//MORDER Document Event Validation
-		MOrder purchase = new MOrder(po.getCtx(), po.get_ID(), po.get_TrxName());	
+		MOrder purchase = new MOrder(Env.getCtx(), po.get_ID(), po.get_TrxName());	
 		
 		//ONLY PURCHASE ORDER   
 		if (!purchase.isSOTrx()) { 
@@ -268,13 +293,13 @@ public class BudgetUtils extends BudgetDocEvent{
 					if (yearRevenue.multiply(percent).divide(Env.ONEHUNDRED,2).compareTo(totalPurchases)<0) {
 						BigDecimal diff = yearRevenue.multiply(percent).divide(Env.ONEHUNDRED,2).subtract(totalPurchases);
 						return throwBudgetExceedMessage(diff.setScale(2,BigDecimal.ROUND_UP).toString()+", "+percent.setScale(2,BigDecimal.ROUND_UP).toString()+"% OF "+yearRevenue.setScale(2,BigDecimal.ROUND_UP).toString()+" REVENUE, PURCHASES ",totalPurchases, matches);			 
-					} else log.fine("PERCENT WITHIN BUDGET "+event);
+					} else log.fine("PERCENT WITHIN BUDGET ");
 			
 				if (budgetAmount.compareTo(Env.ZERO)>0) {
 					if (budgetAmount.compareTo(totalPurchases)<0) {
 						BigDecimal diff = budgetAmount.subtract(totalPurchases);
 						return throwBudgetExceedMessage(diff.setScale(2, BigDecimal.ROUND_UP).toString()+", "+budgetAmount.setScale(2,BigDecimal.ROUND_UP).toString()+" BUDGET, PURCHASES ", totalPurchases, matches);
-					} else log.fine("AMOUNT WITHIN BUDGET "+event);
+					} else log.fine("AMOUNT WITHIN BUDGET ");
 				}
 			}
 		}
@@ -286,7 +311,7 @@ public class BudgetUtils extends BudgetDocEvent{
 	 * USE MATCHES/WHERECLAUSE CONSTRUCT FROM PERIOD,BPARTNER,<FLAG>ACCOUNT-ID,PROJECT,ACTIVITY,CAMPAIGN
 	 * APPLY BUDGET-CONFIG RULES TO BUDGETAMOUNT COMPARE TO TOTALPURCHASES FOR THE YEAR.
 	 */
-	public String checkAccountsBudget() {
+	public static String checkAccountsBudget(PO po) {
 		BigDecimal percent = Env.ZERO;
 		BigDecimal budgetAmount = Env.ZERO;
 		//FETCHING JOURNAL LINES
@@ -326,19 +351,19 @@ public class BudgetUtils extends BudgetDocEvent{
 			//GET TOTAL OF ALL RELATED ACCOUNTING FACTS FOR THE YEAR <WITH RULES APPLIED>
 			cal = Calendar.getInstance();
 			yearValue = yearFormat.format(cal.getTime());
-			BigDecimal totFactAmt = getFactsAmts(matchedBudgetLine, EQUAL, yearValue);
+			BigDecimal totFactAmt = factAmtCalculate(matchedBudgetLine, EQUAL, yearValue);
 			totFactAmt = totFactAmt.add(getAmtSource(null, journalLine));
 			if (percent.compareTo(Env.ZERO)>0) 
 				if (yearRevenue.multiply(percent).divide(Env.ONEHUNDRED,2).compareTo(totFactAmt)<0) {
 					BigDecimal diff = yearRevenue.multiply(percent).divide(Env.ONEHUNDRED,2).subtract(totFactAmt);
 					return throwBudgetExceedMessage(diff.setScale(2, BigDecimal.ROUND_UP).toString()+", "+percent.setScale(2,BigDecimal.ROUND_UP).toString()+"% OF "+yearRevenue.setScale(2,BigDecimal.ROUND_UP)+prorata+" REVENUE FOR ACCOUNT "
 							+journalLine.getAccountElementValue().toString()+", FACTS ", totFactAmt, matches);			 
-				} else log.fine("PERCENT WITHIN BUDGET "+event);
+				} else log.fine("PERCENT WITHIN BUDGET ");
 			if (budgetAmount.compareTo(Env.ZERO)>0) {
 				if (budgetAmount.compareTo(totFactAmt)<0) {
 					BigDecimal diff = budgetAmount.subtract(totFactAmt);
 					return throwBudgetExceedMessage(diff.setScale(2, BigDecimal.ROUND_UP).toString()+", "+budgetAmount.setScale(2,BigDecimal.ROUND_UP).toString()+" BUDGET, FACTS ", totFactAmt, matches);
-				} else log.fine("AMOUNT WITHIN BUDGET "+event);
+				} else log.fine("AMOUNT WITHIN BUDGET ");
 			}
 		}
 		return null;
@@ -350,7 +375,7 @@ public class BudgetUtils extends BudgetDocEvent{
 	 * PURCHASE - PERIOD OR PARTNER / ACCOUNT/PROJECT/ACTIVITY/CAMPAIGN
 	 * FACTS - PERIOD OR ACCOUNT/PROJECT/ACTIVITY/CAMPAIGN
 	 */
-	private List<KeyNamePair> getMatchesFromDoc (PO po) {
+	public static List<KeyNamePair> getMatchesFromDoc (PO po) {
  		List<KeyNamePair> matches = new ArrayList<KeyNamePair>();
 		if (po instanceof MOrder) {
 			MOrder order = (MOrder)po;	
@@ -402,7 +427,7 @@ public class BudgetUtils extends BudgetDocEvent{
 	 * MATCH BETWEEN DOCUMENT CRITERIA AND BUDGET RULES
 	 * COUNT = 1 IF JOURNALLINE AS ONLY FIRST MATCH IS OR, PURCHASE HAS FIRST TWO OR
 	 */
-	private StringBuffer matchesWhereClause(List<KeyNamePair> matches, PO po) {
+	private static StringBuffer matchesWhereClause(List<KeyNamePair> matches, PO po) {
 		int orCount = 1; //FOR JOURNALLINE
 		if (po instanceof MOrder) orCount = 2;
 		StringBuffer whereClause = new StringBuffer("(");
@@ -429,8 +454,8 @@ public class BudgetUtils extends BudgetDocEvent{
 	}
 	
 	// UTILS
-	private String throwBudgetExceedMessage(String description, BigDecimal totalAmt, List<KeyNamePair> matches) {
-		return "EXCEED BY "+description+" TOTAL+THIS: " + totalAmt+prorata+", TREND:"+budgetCONFIGinstance.getBudgetTrend();		
+	private static String throwBudgetExceedMessage(String description, BigDecimal totalAmt, List<KeyNamePair> matches) {
+		return "EXCEED BY "+description+" TOTAL+THIS: " + totalAmt+", TREND: "+prorata+budgetCONFIGinstance.getBudgetTrend();		
 	}
 	/*
 	 * APPLY MATCHES TO WHERE CLAUSE IN SEARCH OF BUDGET LINES
