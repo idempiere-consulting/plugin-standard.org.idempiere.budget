@@ -60,8 +60,8 @@ public class BudgetDocEvent extends AbstractEventHandler{
 		if (BudgetUtils.budgetCONFIGinstance == null) {
 			log.info("<<BUDGET>> RULES ONE-TIME SETTING STARTED");
 			BudgetUtils.initBudgetConfig(po);
-			BudgetUtils.reviewBudgetConfig();
-			BudgetUtils.oneTimeSetupRevenue();
+			BudgetUtils.setupCalendar(po);
+			BudgetUtils.revenueEstimate();
 			log.info("<<BUDGET>> RULES ONE-TIME SETTING SUCCESSFUL");
 			}
  
@@ -69,7 +69,7 @@ public class BudgetDocEvent extends AbstractEventHandler{
 		if (po instanceof MOrder && IEventTopics.DOC_BEFORE_COMPLETE == type){ 
 			log.info(" topic="+event.getTopic()+" po="+po);
 			//SET VARIABLES FOR MATCHED BUDGETLINE PERCENT OR AMOUNT
-			String error = BudgetUtils.checkPurchaseBudget(po);			
+			String error = BudgetUtils.processPurchaseOrder(po);			
 			if (error != null)
 				handleError(error);
 			}
@@ -80,14 +80,15 @@ public class BudgetDocEvent extends AbstractEventHandler{
 		else if (po instanceof MJournal && IEventTopics.DOC_BEFORE_COMPLETE == type){
 			log.info(" topic="+event.getTopic()+" po="+po);
 			//SET VARIABLES FOR MATCHED BUDGETLINE PERCENT OR AMOUNT
-			String error = BudgetUtils.checkAccountsBudget(po);
+			String error = BudgetUtils.processGLJournal(po);
 			if (error != null)
 				handleError(error);
 		}
 	}
 
-	/*
-	 * ALLOW FOR OPTION TO CONTINUE OPERATIONS BUT NOTICE WILL BE ISSUED
+	/**
+	 * ALLOW FOR OPTION TO CONTINUE OPERATIONS BUT NOTICE WILL BE ISSUED 
+	 * @param error
 	 */
 	private void handleError(String error) {
 		if (BudgetUtils.budgetCONFIGinstance.isValid())
@@ -106,11 +107,17 @@ public class BudgetDocEvent extends AbstractEventHandler{
 			note.saveEx();
 		}
 	}
-
+	/**
+	 * 
+	 * @param eventPO
+	 */
 	private void setPo(PO eventPO) {
 		 po = eventPO;
 	}
-
+	/**
+	 * 
+	 * @param get_TrxName
+	 */
 	private void setTrxName(String get_TrxName) {
 		trxName = get_TrxName;		
 	}

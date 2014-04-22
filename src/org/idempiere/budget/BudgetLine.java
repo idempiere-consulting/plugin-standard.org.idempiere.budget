@@ -40,6 +40,10 @@ public class BudgetLine extends MJournalLine {
 	private static final long serialVersionUID = 1L;  
 	private I_GL_JournalLine budgetLine = POWrapper.create(this, I_GL_JournalLine.class);
 
+	public BudgetLine(MJournal journal){
+		super(journal);
+	}
+	
 	public BudgetLine(Properties ctx, int GL_JournalLine_ID, String trxName) {
 		super(ctx, GL_JournalLine_ID, trxName); 
 	}
@@ -79,4 +83,11 @@ public class BudgetLine extends MJournalLine {
     public void setC_Period_ID(int id) {
     	budgetLine.setC_Period_ID(id);
     }
+    public int getAD_OrgDoc_ID() {
+    	return budgetLine.getAD_OrgDoc_ID();
+    }
+    public void setAD_OrgDoc_ID(int id) {
+    	budgetLine.setAD_OrgDoc_ID(id);
+    }
+    
 }
