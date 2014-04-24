@@ -105,6 +105,7 @@ public class BudgetDocEvent extends AbstractEventHandler{
 					po.get_TrxName());
 			note.setAD_Org_ID(po.getAD_Org_ID());
 			note.saveEx();
+			log.fine("HANDLE ERROR - NOTICE CREATED");
 		}
 	}
 	/**
