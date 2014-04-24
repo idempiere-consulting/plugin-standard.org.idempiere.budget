@@ -33,9 +33,9 @@ public class GenerateBudget extends SvrProcess {
 
 	public GenerateBudget() { 
 	}
-    private BigDecimal p_ForecastYears;
+    private BigDecimal p_previousYears;
 	private String p_MonthToMonth;
-	private BigDecimal p_ForecastMonths;
+	private BigDecimal p_previousMonths;
 	private String p_BudgetTrend;
 	public static String p_Percent; //Force all percentages or Amt or follow
 	private String p_CreatePurchaseBudget;
@@ -48,15 +48,15 @@ public class GenerateBudget extends SvrProcess {
         for (int i = 0; i < para.length; i++) {
             String name = para[i].getParameterName();
             if (para[i].getParameter() == null);
-            else if (name.equals("GL_Budget_Forecast_Year")) {
-                p_ForecastYears = ((BigDecimal) para[i].getParameter());
+            else if (name.equals("GL_Budget_previous_Year")) {
+                p_previousYears = ((BigDecimal) para[i].getParameter());
             } 
             //MONTH ON MONTH 
             else if (name.equals("MonthToMonth")) {
                 p_MonthToMonth = ((String) para[i].getParameter());
             }             
-            else if (name.equals("GL_Budget_Forecast_Month")) {
-                p_ForecastMonths = ((BigDecimal) para[i].getParameter());
+            else if (name.equals("GL_Budget_previous_Month")) {
+                p_previousMonths = ((BigDecimal) para[i].getParameter());
             }  
             else if (name.equals("BudgetTrend")) {
                 p_BudgetTrend = ((String) para[i].getParameter()).toString();
@@ -88,7 +88,7 @@ public class GenerateBudget extends SvrProcess {
 
     	//INIT BUDGET CONFIG DETAILS
     	BudgetUtils.initBudgetConfig(targetBudget);
-    	BudgetUtils.setInstance(p_ForecastYears,p_MonthToMonth,p_ForecastMonths,p_BudgetTrend,p_IsProrata);
+    	BudgetUtils.setInstance(p_previousYears,p_MonthToMonth,p_previousMonths,p_BudgetTrend,p_IsProrata);
     	BudgetUtils.setupCalendar(targetBudget);
     	BudgetUtils.runtimePO = targetBudget;
     	MJournal newbudget = createBudget(targetBudget);

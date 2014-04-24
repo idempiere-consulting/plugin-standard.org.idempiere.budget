@@ -50,13 +50,13 @@ public class BudgetUtils{
 	public static PO runtimePO;
 	private static final SimpleDateFormat yearFormat = new SimpleDateFormat("yyyy");
  
-	private static int forecastYears; 
+	private static int previousYears; 
 	private static String startYear;
 	private static String pastYear;
 	private static String presentYear;
 	private static BigDecimal RevenueEstimate;  
 	
-	private static int forecastMonths;
+	private static int previousMonths;
 	private static int startMonth;
 	private static int pastMonth;
 	private static int presentMonth;
@@ -101,20 +101,20 @@ public class BudgetUtils{
 	
 	/**
 	 * SETTERS FOR GENERATE BUDGET PROCESS - TAKING FROM PARAMS THERE
-	 * @param forecastYears
+	 * @param previousYears
 	 * @param MonthToMonth
-	 * @param ForecastMonths
+	 * @param PreviousMonths
 	 * @param BudgetTrend
 	 * @param Prorata
 	 */
-	public static void setInstance(BigDecimal forecastYears,String MonthToMonth,BigDecimal ForecastMonths,String BudgetTrend,String Prorata) {
+	public static void setInstance(BigDecimal previousYears,String MonthToMonth,BigDecimal PreviousMonths,String BudgetTrend,String Prorata) {
 		log.fine("public static void setInstance(...)");
-		budgetCONFIGinstance.setGL_Budget_Forecast_Year(forecastYears);
+		budgetCONFIGinstance.setGL_Budget_Previous_Year(previousYears);
 		budgetCONFIGinstance.setMonthToMonth(new Boolean(MonthToMonth));
-		budgetCONFIGinstance.setGL_Budget_Forecast_Month(ForecastMonths);
+		budgetCONFIGinstance.setGL_Budget_Previous_Month(PreviousMonths);
 		budgetCONFIGinstance.setBudgetTrend(BudgetTrend);
 		budgetCONFIGinstance.setProrata(new Boolean(Prorata));
-		log.finer("SET INSTANCE Forecast years:"+forecastYears+" MonthToMonth: "+MonthToMonth+" ForecastMonths: "+ForecastMonths+" BudgetTrend: "+BudgetTrend+" Prorata: "+Prorata);
+		log.finer("SET INSTANCE Previous years:"+previousYears+" MonthToMonth: "+MonthToMonth+" PreviousMonths: "+PreviousMonths+" BudgetTrend: "+BudgetTrend+" Prorata: "+Prorata);
 	}
 	/**
 	 * RESOLVE CONFLICTING PROPERTIES OF BUDGETCONFIGINSTANCE
@@ -123,8 +123,8 @@ public class BudgetUtils{
 	 */
 	public static void setupCalendar(PO po) {
 		log.fine("public static void setupCalendar(PO po)");
-		forecastYears = budgetCONFIGinstance.getGL_Budget_Forecast_Year().intValue();
-		forecastMonths = budgetCONFIGinstance.getGL_Budget_Forecast_Month().intValue();
+		previousYears = budgetCONFIGinstance.getGL_Budget_Previous_Year().intValue();
+		previousMonths = budgetCONFIGinstance.getGL_Budget_Previous_Month().intValue();
 		
 		//present year
 		Calendar cal = Calendar.getInstance();
@@ -134,10 +134,10 @@ public class BudgetUtils{
 		pastYear = yearFormat.format(cal.getTime());
 		//starting year
 		cal = Calendar.getInstance();
-		cal.add(Calendar.YEAR, -forecastYears);
+		cal.add(Calendar.YEAR, -previousYears);
 		startYear = yearFormat.format(cal.getTime());
 
-		log.finer("SETUP CALENDAR - CAL : "+cal.toString()+" START YEAR: "+startYear+" PAST YEAR: "+pastYear+" YEARS RANGE: "+forecastYears);
+		log.finer("SETUP CALENDAR - CAL : "+cal.toString()+" START YEAR: "+startYear+" PAST YEAR: "+pastYear+" YEARS RANGE: "+previousYears);
 
 		//Month PERIODS IDS assumed to be consecutive.
 		//present month
@@ -145,13 +145,13 @@ public class BudgetUtils{
 		//last month
 		pastMonth = presentMonth - 1;
 		//starting month
-		startMonth = presentMonth - forecastMonths;
+		startMonth = presentMonth - previousMonths;
 		
 		//IF PRORATA THEN CONFIG MONTHS VOID
 		if (budgetCONFIGinstance.isProrata()) {
 			isProrata = true;
 			isMonthToMonth = false;
-			forecastMonths = 0;
+			previousMonths = 0;
 		}
 		//IF MONTH ON MONTH
 		else if (budgetCONFIGinstance.isMonthToMonth()) {
@@ -168,15 +168,15 @@ public class BudgetUtils{
 	 */
 	public static BigDecimal revenueEstimate() {
 		log.fine("public static BigDecimal revenueEstimate()");
-		if (forecastYears==0) { //NO ACTION
+		if (previousYears==0) { //NO ACTION
 				RevenueEstimate = Env.ZERO;					 
 			}
-		else if (forecastYears<100){
+		else if (previousYears<100){
 			RevenueEstimate = selectAccountingFacts(null, MORE_EQUAL, startYear, 0);
 			RevenueEstimate = budgetTrend(null, RevenueEstimate, 0);//OBTAIN REVENUE 4XXX AMOUNT
 		}
 		//FORECAST MONTHS
-		if (forecastMonths>0){
+		if (previousMonths>0){
 			//set present month, last month, starting month
 		}
 		log.finer("REVENUE ESTIMATE: "+RevenueEstimate.toString());				
@@ -343,21 +343,21 @@ public class BudgetUtils{
 	 */
 	private static BigDecimal budgetTrend(BudgetLine line, BigDecimal returnAmount, int Period_ID) {		
 		log.fine("	private static BigDecimal budgetTrend(BudgetLine line, BigDecimal returnAmount, int Period_ID)");
-		//TODO forecast months
-		if (forecastMonths>1){
+		//TODO previous months
+		if (previousMonths>1){
 			
 		}
 		//IF YEARS-RANGE = 1 i.e. ONLY LAST YEAR NOT SUBJECTED TO FURTHER TREND
-		if (forecastYears==1) {
+		if (previousYears==1) {
 			returnAmount = selectAccountingFacts(line, EQUAL, pastYear, Period_ID);
 			return returnAmount;
 		}
-		//forecast Months = 1 i.e. Period_ID = LastMonth (todo in setupCalendar.
-		if (forecastMonths==1) returnAmount = selectAccountingFacts(line,EQUAL,null,Period_ID);
+		//previous Months = 1 i.e. Period_ID = LastMonth (todo in setupCalendar.
+		if (previousMonths==1) returnAmount = selectAccountingFacts(line,EQUAL,null,Period_ID);
 		
 		//AMOUNT AVERAGE ACROSS RANGE OF YEARS
  		BigDecimal sumAmt= returnAmount; //FOR LATER FORMULA USE
-		BigDecimal average = returnAmount.divide(new BigDecimal(forecastYears),2);
+		BigDecimal average = returnAmount.divide(new BigDecimal(previousYears),2);
 		
 		//RETURN AVERAGE
 		if (budgetCONFIGinstance.getBudgetTrend().equals("A"))
@@ -791,7 +791,7 @@ public class BudgetUtils{
 			}
 			if (!amtPeriod.equals(Env.ZERO)) {
       	 		//if percent, then calculate amt as percent of revenue..
-				totalAmt = amtPeriod.divide(new BigDecimal(forecastYears),2); //temporal .. passing to budgetTrend
+				totalAmt = amtPeriod.divide(new BigDecimal(previousYears),2); //temporal .. passing to budgetTrend
 				//write to new line rule of new budget (for 12 periods) -- getPeriodNo from Period_ID or deduce!
 				//totalAmt = budgetTrend(line, totalAmt, Period_ID); //set isCrDr flag
        	 		BudgetLine newline = new BudgetLine(newbudget);
