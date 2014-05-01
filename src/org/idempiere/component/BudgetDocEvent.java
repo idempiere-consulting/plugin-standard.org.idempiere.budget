@@ -16,6 +16,8 @@
 
 package org.idempiere.component;
 
+import java.math.BigDecimal;
+
 import org.adempiere.base.event.AbstractEventHandler;
 import org.adempiere.base.event.IEventTopics;
 import org.adempiere.exceptions.AdempiereException;
@@ -61,7 +63,10 @@ public class BudgetDocEvent extends AbstractEventHandler{
 			log.info("<<BUDGET>> RULES ONE-TIME SETTING STARTED");
 			BudgetUtils.initBudgetConfig(po);
 			BudgetUtils.setupCalendar(po);
-			BudgetUtils.revenueEstimate();
+			BudgetUtils.clearWhereMatches();
+			BigDecimal revenueEstimate = BudgetUtils.revenueEstimate();
+			BudgetUtils.RevenueEstimate = BudgetUtils.budgetTrend(null, revenueEstimate);//OBTAIN REVENUE 4XXX AMOUNT
+
 			log.info("<<BUDGET>> RULES ONE-TIME SETTING SUCCESSFUL");
 			}
  

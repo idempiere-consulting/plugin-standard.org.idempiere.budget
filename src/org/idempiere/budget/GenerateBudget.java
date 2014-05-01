@@ -23,6 +23,7 @@ import java.util.logging.Level;
 import org.adempiere.exceptions.AdempiereException;
 import org.compiere.model.MFactAcct;
 import org.compiere.model.MJournal;
+import org.compiere.model.MOrder;
 import org.compiere.model.Query;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
@@ -35,8 +36,7 @@ public class GenerateBudget extends SvrProcess {
 	}
     private BigDecimal p_previousYears;
 	private String p_MonthToMonth;
-	private BigDecimal p_previousMonths;
-	private String p_BudgetTrend;
+	private BigDecimal p_previousMonths; 
 	public static String p_Percent; //Force all percentages or Amt or follow
 	private String p_CreatePurchaseBudget;
 	private String p_DeleteOld; //OR just deactivate
@@ -48,18 +48,15 @@ public class GenerateBudget extends SvrProcess {
         for (int i = 0; i < para.length; i++) {
             String name = para[i].getParameterName();
             if (para[i].getParameter() == null);
-            else if (name.equals("GL_Budget_previous_Year")) {
+            else if (name.equals("GL_Budget_Previous_Year")) {
                 p_previousYears = ((BigDecimal) para[i].getParameter());
             } 
             //MONTH ON MONTH 
             else if (name.equals("MonthToMonth")) {
                 p_MonthToMonth = ((String) para[i].getParameter());
             }             
-            else if (name.equals("GL_Budget_previous_Month")) {
+            else if (name.equals("GL_Budget_Previous_Month")) {
                 p_previousMonths = ((BigDecimal) para[i].getParameter());
-            }  
-            else if (name.equals("BudgetTrend")) {
-                p_BudgetTrend = ((String) para[i].getParameter()).toString();
             }  
             else if (name.equals("Percent")) {
             	p_Percent = ((String) para[i].getParameter());
@@ -88,9 +85,10 @@ public class GenerateBudget extends SvrProcess {
 
     	//INIT BUDGET CONFIG DETAILS
     	BudgetUtils.initBudgetConfig(targetBudget);
-    	BudgetUtils.setInstance(p_previousYears,p_MonthToMonth,p_previousMonths,p_BudgetTrend,p_IsProrata);
+    	BudgetUtils.setInstance(p_previousYears,p_MonthToMonth,p_previousMonths,p_IsProrata);
     	BudgetUtils.setupCalendar(targetBudget);
-    	BudgetUtils.runtimePO = targetBudget;
+    	BudgetUtils.clearWhereMatches();
+		BudgetUtils.revenueEstimate();
     	MJournal newbudget = createBudget(targetBudget);
     	if (newbudget.getGL_Journal_ID()<1) throw new AdempiereException("CANNOT CREATE NEW BUDGET JOURNAL");
     	//GET YEAR REVENUE ACCORDING TO CONFIG
@@ -101,32 +99,25 @@ public class GenerateBudget extends SvrProcess {
     	//ITERATE TARGET BUDGET LINES       
         List<BudgetLine> targetBudgetLines = new Query(Env.getCtx(), BudgetLine.Table_Name, BudgetLine.COLUMNNAME_GL_Journal_ID+"=?", get_TrxName())
         .setParameters(targetBudget.getGL_Journal_ID())
+        .setOnlyActiveRecords(true)
         .list();
-        BigDecimal amt = Env.ZERO;
-        for (BudgetLine tbl:targetBudgetLines){
+         for (BudgetLine tbl:targetBudgetLines){
+        	if (tbl.isProcessed()) continue; //marker to stop accidentally generate from generated (highly redundant for M2M)
         	if (tbl.getAccount_ID()<1) continue; //NO ACCOUNTING ELEMENT TO SET BUDGET 
-        	amt = Env.ZERO;
-        	if (tbl.getAccount_ID()==508 && p_CreatePurchaseBudget.equals("Y")){//508 reserved checking account to denote POs       		
-         		generatePurchaseBudget(tbl);
+         	if (p_MonthToMonth=="Y" && tbl.getC_Period_ID()>0) continue;//M2M avoids Periodic rules
+        	
+         	if (tbl.getAccount_ID()==508 && p_CreatePurchaseBudget.equals("Y")){//508 reserved checking account to denote POs       		
+            	BudgetUtils.runtimePO = new MOrder(tbl.getCtx(), 0, tbl.get_TrxName());
+         		BudgetUtils.generateBudgetLine(tbl, newbudget);
 
         	}
         	else if (tbl.getAccount_ID()!=508){
         		//GENERATE BUDGET FOR MATCHING ACCOUNTING ELEMENT 
-
-            	 // TODO move to BudgetLine class
-            	 if (p_MonthToMonth.equals("Y") && tbl.getC_Period_ID()>0) {  
-                	 BudgetUtils.setWhereMatches(tbl); 
-            		 BudgetUtils.processMonthToMonth(tbl, newbudget);
-            	 }
+        		BudgetUtils.runtimePO = tbl;
+            	BudgetUtils.generateBudgetLine(tbl, newbudget); 
         	}
         }
  
-        //ITERATE ACCOUNTING FACTS AND WRITE NEW GL BUDGET JOURNAL
-        
-        //FOLLOW TREND TO EXTRACT BUDGET ESTIMATES
-        
-        //ALLOW PERCENTAGE SETTING THAT IS MORE DYNAMIC BUDGET CONTROL
-        
 		return message;   	
     }
     /**
@@ -141,19 +132,6 @@ public class GenerateBudget extends SvrProcess {
     	budget.setControlAmt(Env.ZERO);
     	budget.saveEx(target.get_TrxName());
 		return budget;
-	}
-
-	/**
-     * GENERATE PURCHASING BUDGET FOR MATCHING BUDGETLINE
-     * @param budgetLine
-     */
-	private void generatePurchaseBudget(BudgetLine budgetLine) {
-		// TODO copy over detail with new percent or budgetAmt
-		//checks ALL similar MOrder (PO) within Years, follow budgetTrend to get yearly estimate and 
-		//set as Percentage of Revenue
-		 
-		
-		
 	}
 
 }
