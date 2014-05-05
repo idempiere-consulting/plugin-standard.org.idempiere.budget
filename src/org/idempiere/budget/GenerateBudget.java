@@ -78,6 +78,7 @@ public class GenerateBudget extends SvrProcess {
 
     protected String doIt() {
     	String message = "";
+    	int count = 0;
     	//ACCESS PRESENT TARGET BUDGET TO CREATE NEW BUDGET
         MJournal targetBudget = new Query(Env.getCtx(),MJournal.Table_Name, "PostingType='B' AND GL_Budget_ID=?",get_TrxName())
         .setParameters(100) //HARD SET FOR TARGETBUDGET ID
@@ -97,7 +98,7 @@ public class GenerateBudget extends SvrProcess {
     	//DELETE OLD OR DEACTIVATE
     	
     	//ITERATE TARGET BUDGET LINES       
-        List<BudgetLine> targetBudgetLines = new Query(Env.getCtx(), BudgetLine.Table_Name, BudgetLine.COLUMNNAME_GL_Journal_ID+"=?", get_TrxName())
+        List<BudgetLine> targetBudgetLines = new Query(newbudget.getCtx(), BudgetLine.Table_Name, BudgetLine.COLUMNNAME_GL_Journal_ID+"=?", newbudget.get_TrxName())
         .setParameters(targetBudget.getGL_Journal_ID())
         .setOnlyActiveRecords(true)
         .list();
@@ -108,17 +109,18 @@ public class GenerateBudget extends SvrProcess {
         	
          	if (tbl.getAccount_ID()==508 && p_CreatePurchaseBudget.equals("Y")){//508 reserved checking account to denote POs       		
             	BudgetUtils.runtimePO = new MOrder(tbl.getCtx(), 0, tbl.get_TrxName());
-         		BudgetUtils.generateBudgetLine(tbl, newbudget);
-
-        	}
+         	}
         	else if (tbl.getAccount_ID()!=508){
         		//GENERATE BUDGET FOR MATCHING ACCOUNTING ELEMENT 
         		BudgetUtils.runtimePO = tbl;
-            	BudgetUtils.generateBudgetLine(tbl, newbudget); 
-        	}
+         	}
+           	int c = BudgetUtils.generateBudgetLine(tbl, newbudget); 
+           	if (c>0){
+           		count=count+c;
+           	}
         }
  
-		return message;   	
+		return new Integer(count).toString()+" Budget Lines Created";   	
     }
     /**
      * CREATE NEW BUDGET JOURNAL

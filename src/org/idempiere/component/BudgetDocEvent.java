@@ -21,10 +21,12 @@ import java.math.BigDecimal;
 import org.adempiere.base.event.AbstractEventHandler;
 import org.adempiere.base.event.IEventTopics;
 import org.adempiere.exceptions.AdempiereException;
+import org.compiere.model.MInvoice;
 import org.compiere.model.MJournal;
 import org.compiere.model.MMessage;
 import org.compiere.model.MNote;
 import org.compiere.model.MOrder;
+import org.compiere.model.MPayment;
 import org.compiere.model.PO;
 import org.compiere.util.CLogger;
 import org.idempiere.budget.BudgetUtils; 
@@ -42,6 +44,8 @@ public class BudgetDocEvent extends AbstractEventHandler{
 	//register EventTopics and TableNames
 		registerTableEvent(IEventTopics.DOC_BEFORE_COMPLETE, MOrder.Table_Name); 
 		registerTableEvent(IEventTopics.DOC_BEFORE_COMPLETE, MJournal.Table_Name); 
+		registerTableEvent(IEventTopics.DOC_BEFORE_COMPLETE, MInvoice.Table_Name); 
+		registerTableEvent(IEventTopics.DOC_BEFORE_COMPLETE, MPayment.Table_Name);  
 		BudgetUtils.budgetCONFIGinstance = null;
 		log.info("<<BUDGET>> PLUGIN INITIALIZED");
 		}
@@ -71,10 +75,10 @@ public class BudgetDocEvent extends AbstractEventHandler{
 			}
  
 		//ORDER DOCUMENT VALIDATION BEFORE COMPLETE
-		if (po instanceof MOrder && IEventTopics.DOC_BEFORE_COMPLETE == type){ 
+		if ((po instanceof MOrder || po instanceof MInvoice || po instanceof MPayment) && IEventTopics.DOC_BEFORE_COMPLETE == type){ 
 			log.info(" topic="+event.getTopic()+" po="+po);
 			//SET VARIABLES FOR MATCHED BUDGETLINE PERCENT OR AMOUNT
-			String error = BudgetUtils.processPurchaseOrder(po);			
+			String error = BudgetUtils.eventPurchases(po);			
 			if (error != null)
 				handleError(error);
 			}
@@ -85,7 +89,7 @@ public class BudgetDocEvent extends AbstractEventHandler{
 		else if (po instanceof MJournal && IEventTopics.DOC_BEFORE_COMPLETE == type){
 			log.info(" topic="+event.getTopic()+" po="+po);
 			//SET VARIABLES FOR MATCHED BUDGETLINE PERCENT OR AMOUNT
-			String error = BudgetUtils.processGLJournal(po);
+			String error = BudgetUtils.eventGLJournal(po);
 			if (error != null)
 				handleError(error);
 		}

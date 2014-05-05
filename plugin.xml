@@ -4,13 +4,19 @@
    <extension
          point="org.adempiere.base.IColumnCallout">
       <callout
-            class="org.idempiere.component.BudgetCallout"
-            columnName="AD_Org_ID"
-            tableName="C_Order">
+            class="org.budget.callout.BudgetConfig"
+            columnName="GL_Budget_Previous_Year"
+            tableName="GL_BudgetConfig">
+      </callout>
+      <callout
+            class="org.budget.callout.BudgetConfig"
+            columnName="GL_Budget_Previous_Month"
+            tableName="GL_BudgetConfig">
       </callout>
    </extension>
    <extension
-         id="org.plugin.model.Process"
+         id="org.idempiere.budget.GenerateBudget"
+         name="Generate Budget Journal"
          point="org.adempiere.base.Process">
       <process
             class="org.idempiere.budget.GenerateBudget">
