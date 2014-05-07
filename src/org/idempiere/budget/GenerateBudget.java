@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.logging.Level;
 
 import org.adempiere.exceptions.AdempiereException;
+import org.budget.callout.BudgetConfigCallout;
 import org.compiere.model.MFactAcct;
 import org.compiere.model.MJournal;
 import org.compiere.model.MOrder;
@@ -40,7 +41,7 @@ public class GenerateBudget extends SvrProcess {
 	public static String p_Percent; //Force all percentages or Amt or follow
 	private String p_CreatePurchaseBudget;
 	private String p_DeleteOld; //OR just deactivate
-	private String p_IsProrata;  
+	public static String p_AlignPrevious;  
     
     protected void prepare() {
     	//TODO implement parameters capture
@@ -65,10 +66,10 @@ public class GenerateBudget extends SvrProcess {
             	p_CreatePurchaseBudget = ((String) para[i].getParameter());
             } 
             else if (name.equals("DeleteOld")) {
-            	p_IsProrata = ((String) para[i].getParameter());
-            }  
-            else if (name.equals("Prorata")) {
             	p_DeleteOld = ((String) para[i].getParameter());
+            }  
+            else if (name.equals("AlignPreviousBudget")) {
+            	p_AlignPrevious = ((String) para[i].getParameter());
             } 
             else {
                 log.log(Level.SEVERE, "Unknown Parameter: " + name);
@@ -86,7 +87,7 @@ public class GenerateBudget extends SvrProcess {
 
     	//INIT BUDGET CONFIG DETAILS
     	BudgetUtils.initBudgetConfig(targetBudget);
-    	BudgetUtils.setInstance(p_previousYears,p_MonthToMonth,p_previousMonths,p_IsProrata);
+    	BudgetUtils.setInstance(p_previousYears,p_MonthToMonth,p_previousMonths,"N");
     	BudgetUtils.setupCalendar(targetBudget);
     	BudgetUtils.clearWhereMatches();
 		BudgetUtils.revenueEstimate();
@@ -105,8 +106,8 @@ public class GenerateBudget extends SvrProcess {
          for (BudgetLine tbl:targetBudgetLines){
         	if (tbl.isProcessed()) continue; //marker to stop accidentally generate from generated (highly redundant for M2M)
         	if (tbl.getAccount_ID()<1) continue; //NO ACCOUNTING ELEMENT TO SET BUDGET 
-         	if (p_MonthToMonth=="Y" && tbl.getC_Period_ID()>0) continue;//M2M avoids Periodic rules
-        	
+         	if (p_MonthToMonth.equals("Y") && tbl.getC_Period_ID()>0) 
+         		continue;//M2M avoids Periodic rules
          	if (tbl.getAccount_ID()==508 && p_CreatePurchaseBudget.equals("Y")){//508 reserved checking account to denote POs       		
             	BudgetUtils.runtimePO = new MOrder(tbl.getCtx(), 0, tbl.get_TrxName());
          	}
@@ -119,8 +120,14 @@ public class GenerateBudget extends SvrProcess {
            		count=count+c;
            	}
         }
- 
-		return new Integer(count).toString()+" Budget Lines Created";   	
+         MBudgetConfig config = new Query(getCtx(), MBudgetConfig.Table_Name, "", get_TrxName())
+         .firstOnly();
+         config.setMonthToMonth(false);
+         if (count > 11 && p_MonthToMonth.equals("Y")) {
+             config.setMonthToMonth(true);
+         }   
+        String suffix = p_MonthToMonth=="Y"? " Month To Month Generated":""; 
+		return new Integer(count).toString()+" Budget Lines Created."+suffix;   	
     }
     /**
      * CREATE NEW BUDGET JOURNAL

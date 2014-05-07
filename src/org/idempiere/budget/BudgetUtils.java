@@ -17,6 +17,7 @@
 package org.idempiere.budget;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -76,6 +77,8 @@ public class BudgetUtils{
 	private static BigDecimal budgetPercent;
 	private static BigDecimal budgetAmount;
 	private static boolean matchedIsCreditAmt = true;
+	private static 	boolean isPurchasing;
+	private static 	String isSOTrx = "";
 	
 	/**
 	 * LOAD CONFIG SETTINGS :
@@ -108,7 +111,7 @@ public class BudgetUtils{
 	public static void setInstance(BigDecimal previousYears,String MonthToMonth,BigDecimal PreviousMonths,String Prorata) {
 		log.fine("public static void setInstance(...)");
 		budgetCONFIGinstance.setGL_Budget_Previous_Year(previousYears);
-		budgetCONFIGinstance.setMonthToMonth(new Boolean(MonthToMonth));
+		budgetCONFIGinstance.setMonthToMonth(MonthToMonth.equals("Y")? true:false);
 		budgetCONFIGinstance.setGL_Budget_Previous_Month(PreviousMonths);
 		budgetCONFIGinstance.setProrata(new Boolean(Prorata));
 		log.finer("SET INSTANCE Previous years:"+previousYears+" MonthToMonth: "+MonthToMonth+" PreviousMonths: "+PreviousMonths+" Prorata: "+Prorata);
@@ -148,7 +151,6 @@ public class BudgetUtils{
 			cal = Calendar.getInstance();
 			cal.add(Calendar.YEAR, -previousYears);
 			startYear = yearFormat.format(cal.getTime());
-
 		}
 		
 		//IF PRORATA THEN CONFIG MONTHS VOID
@@ -222,10 +224,10 @@ public class BudgetUtils{
 			else if (budgetCONFIGinstance.getBudgetTrend().equals("T")) {
 				previousYears = 1; //for GenerateBudget selectPurchases
 				previousMonths = PeriodNo;
-				if (runtimePO instanceof MJournal)
+				if (runtimePO instanceof MJournalLine)
 					returnAmount = selectAccountingFacts(line, EQUAL, presentYear, 0);
 				else 
-					returnAmount = selectPurchases(line, MORE_EQUAL, presentYear, 0);
+					returnAmount = selectPurchasesSales(line, MORE_EQUAL, presentYear, 0);
 			}		
 		
 		//TREND AVERAGE
@@ -235,10 +237,10 @@ public class BudgetUtils{
 		//AVERAGE+LAST = ADD AVERAGE TO PREVIOUS MONTH
 		else if (budgetCONFIGinstance.getBudgetTrend().equals("L")){
 			BigDecimal lastAmt = Env.ZERO;
-			if (runtimePO instanceof MJournal)
+			if (runtimePO instanceof MJournalLine)
 				lastAmt = selectAccountingFacts(line, EQUAL, pastYear, pastMonth);
 			else
-				lastAmt = selectPurchases(line, MORE_EQUAL, pastYear, pastMonth);
+				lastAmt = selectPurchasesSales(line, MORE_EQUAL, pastYear, pastMonth);
 			returnAmount = lastAmt.add(average);
 			}			
 		//APPLY RATE OF CHANGE OVER RANGE TO LAST MONTH'S 
@@ -254,8 +256,6 @@ public class BudgetUtils{
 	 */
 	public static BudgetLine setAmtSource(BudgetLine line, BigDecimal amt){
 		log.fine("public static BudgetLine setAmtSource(BudgetLine line, BigDecimal amt)");
-		if (amt.equals(Env.ZERO))
-			line.setAmtAcctDr(Env.ZERO);//is a clear set request from amt arg
 		if (matchedIsCreditAmt)
 			line.setAmtSourceCr(amt);
 		else line.setAmtSourceDr(amt);
@@ -276,43 +276,42 @@ public class BudgetUtils{
 	 * @param po
 	 * @return IF ERROR STRING
 	 */
-	public static String eventPurchases(PO po) {
+	public static String eventPurchasesSales(PO po) {
 		log.fine("public static String processPurchaseOrder(PO po)");
 		runtimePO = po;  
-		boolean isPurchasing = true;
 		if (po instanceof MOrder) {
-			MOrder purchase = new MOrder(Env.getCtx(), po.get_ID(), po.get_TrxName());	
-			if (purchase.isSOTrx()) 
-				isPurchasing = false;
+			MOrder purchase = (MOrder)po; 
+			isPurchasing = !((MOrder) po).isSOTrx();
 			po = purchase;
 		}
 		else if (po instanceof MInvoice){
-			MInvoice invoice = new MInvoice(Env.getCtx(), po.get_ID(), po.get_TrxName());
-			if (invoice.isSOTrx() || invoice.getC_Order_ID()>0) 
-				isPurchasing = false;
+			MInvoice invoice = (MInvoice)po;
+			if (invoice.getC_Order_ID()>0 || invoice.getC_Payment_ID()>0)
+				return null; 
+				isPurchasing = !((MInvoice) po).isSOTrx();
 			po = invoice;
 		}
 		else if (po instanceof MPayment){
-			MPayment payment = new MPayment(Env.getCtx(), po.get_ID(), po.get_TrxName());	
-			if (payment.getC_DocType().isSOTrx() || payment.getC_Order_ID()>0 || payment.getC_Invoice_ID()>0){
+			MPayment payment = (MPayment)po;	
+			if (payment.getC_Order_ID()>0 || payment.getC_Invoice_ID()>0)
+				return null;
+			if (payment.getC_DocType().isSOTrx())
 				isPurchasing = false;
-				po = payment;
-			}
+			else isPurchasing = true;
+			po = payment;
+			
 		}
-		//ONLY PURCHASING DOCTYPES
-
-		if (isPurchasing) { 		
-			BudgetLine matchedBudgetLine = matchingBudget(po);
-			if (matchedBudgetLine!=null){ 
-				paramTrimming(matchedBudgetLine, false);
-				
-				BigDecimal totalPurchases = selectPurchases(po, EQUAL, presentYear, previousMonths);
-				totalPurchases = totalPurchases.add((BigDecimal) po.get_Value(MOrder.COLUMNNAME_GrandTotal));
-				//IF PRORATA TAKE ONLY PRESENT MONTH(S) PURCHASES
-				//IF ISMONTHONMONTH TAKE SAME PERIODS FROM PREVIOUS YEARS AND APPLY AVERAGE/PRGRESSIVE
-				return budgetAgainstToDate(totalPurchases);
-			}
+			
+		BudgetLine matchedBudgetLine = matchingBudget(po);
+		if (matchedBudgetLine!=null){ 
+			paramTrimming(matchedBudgetLine, false);	
+			BigDecimal totalPurchasesSales = selectPurchasesSales(po, EQUAL, presentYear, previousMonths);
+			totalPurchasesSales = totalPurchasesSales.add((BigDecimal) po.get_Value(MOrder.COLUMNNAME_GrandTotal));
+			//IF PRORATA TAKE ONLY PRESENT MONTH(S) PURCHASES
+			//IF ISMONTHONMONTH TAKE SAME PERIODS FROM PREVIOUS YEARS AND APPLY AVERAGE/PRGRESSIVE
+			return budgetAgainstToDate(totalPurchasesSales);
 		}
+		
 		log.finer("PROCESS PURCHASE ORDER - NO ERROR STRING RETURNED");
 		return null;//no error
 	}
@@ -353,6 +352,7 @@ public class BudgetUtils{
 	 */
 	public static int generateBudgetLine(BudgetLine line, MJournal newbudget){
 		log.fine("public static boolean generateBudgetLines(BudgetLine line, MJournal newbudget)");
+		isPurchasing = !line.isSOTrx();
 		int count = 0;
 		BigDecimal baseAmt = Env.ZERO;
 		int periodSerial = firstPeriodOfYear;
@@ -376,23 +376,24 @@ public class BudgetUtils{
 		paramTrimming(line, purchaseGenerate);
 
 		int momSize = mom.size();
-		if (previousMonths>0) { //no longer year cycle
+		if (previousMonths>0 || previousYears==1) { //no longer year cycle
 			y=1;
 			momSize = mom.size()+PeriodNo-12; //truncate off as after this month has no records
 			Period_ID = previousMonths;
 			isProrata = false;
+			isMonthToMonth = false;
 		}
 		if (!isMonthToMonth){
 			y=1;
 			operand = MORE_EQUAL;
-			momSize = 0;
+			momSize = 1;
 		}
 		for (int cnt=0;cnt<y;cnt++){			
-			for (int periodCnt=cnt;periodCnt<=momSize;periodCnt+=y){ //increments by 12 to jump into yearly loops
-				if (Period_ID==0)
+			for (int periodCnt=cnt;periodCnt<momSize;periodCnt+=y){ //increments by 12 to jump into yearly loops
+				if (previousMonths==0)
 					Period_ID = mom.get(periodCnt);		
-				if (!(runtimePO instanceof MJournal)) 
-					totalAmt = totalAmt.add(selectPurchases(line, operand, startYear, Period_ID));
+				if (!(runtimePO instanceof MJournalLine)) 
+					totalAmt = totalAmt.add(selectPurchasesSales(line, operand, startYear, Period_ID));
 				else 
 					totalAmt = totalAmt.add(selectAccountingFacts(line, operand, startYear, Period_ID)); 		 
 			}
@@ -403,7 +404,7 @@ public class BudgetUtils{
 				if (previousMonths==0) //only for previousYears case, more definite check
 					checkProrata(line);
 				if (line.getPercent().compareTo(Env.ZERO)==0 && GenerateBudget.p_Percent.equals("N")){
-	 	 				totalAmt = historicalCondition(totalAmt, getAmtSource(null, line));
+	 	 				totalAmt = alignPreviousFigure(totalAmt, getAmtSource(null, line));
 					newline = setAmtSource(newline, totalAmt); 
 					newline.setPercent(Env.ZERO);
 	      		}
@@ -413,8 +414,8 @@ public class BudgetUtils{
 						baseAmt = RevenueEstimate.divide(new BigDecimal(12),2);//PRORATA IF MONTH BASE
 					else
 						baseAmt = RevenueEstimate;
-					BigDecimal percentage = totalAmt.divide(baseAmt,2).multiply(Env.ONEHUNDRED);
-	 				percentage = historicalCondition(percentage, line.getPercent());
+					BigDecimal percentage = totalAmt.divide(baseAmt,2).multiply(Env.ONEHUNDRED).setScale(2, RoundingMode.UP);
+	 				percentage = alignPreviousFigure(percentage, line.getPercent());
 					newline.setPercent(percentage);  
 					newline = setAmtSource(newline, Env.ZERO);
 	       	 		}
@@ -445,6 +446,7 @@ public class BudgetUtils{
 		newline.setC_Campaign_ID(line.getC_Campaign_ID());
 		newline.setM_Product_ID(line.getM_Product_ID());
 		newline.setAccount_ID(line.getAccount_ID());
+		newline.setIsSOTrx(line.isSOTrx());
 		newline.setLine(line.getLine());
 	}
 
@@ -530,11 +532,11 @@ public class BudgetUtils{
 	 * @param year
 	 * @return
 	 */
-	private static BigDecimal selectPurchases(PO po, String operand, String year, int periodValue) {
+	private static BigDecimal selectPurchasesSales(PO po, String operand, String year, int periodValue) {
 		log.fine("private static BigDecimal selectPurchaseOrders(PO po, String operand, String year)");
 		//SQL EXECUTION
 		BigDecimal totalAmt = Env.ZERO; 
-		whereMatchesSQL = new StringBuffer("IsSOTrx = 'N' AND DocStatus = 'CO' AND " + whereMatchesSQL.toString());//IsSOTrx = 'N' AND DocStatus = 'CO' AND 
+		whereMatchesSQL = new StringBuffer("DocStatus = 'CO' AND " + whereMatchesSQL.toString());//IsSOTrx = 'N' AND DocStatus = 'CO' AND 
 		StringBuffer yearClause = new StringBuffer(" AND (SELECT EXTRACT(ISOYEAR FROM DateOrdered)) "+operand+"'"+year+"'");
 		if (operand.equals(MORE_EQUAL)){//happens during GenerateBudget only
 			if (previousYears>0)
@@ -543,8 +545,16 @@ public class BudgetUtils{
 				changePeriodToTimestamp(periodValue);
 			}		
 		}
-	
-		List<MOrder> allPurchases = new Query(po.getCtx(), MOrder.Table_Name, whereMatchesSQL.toString(), po.get_TrxName())
+		if (isMonthToMonth)
+			changePeriodToTimestamp(periodValue);
+		
+		//ONLY PURCHASING DOCTYPES - SPLIT TO SALES ALSO VIA ISSOTRX SWAP
+		if (isPurchasing)  
+			isSOTrx = "isSOTrx='N' AND ";
+		else
+			isSOTrx = "isSOTrx='Y' AND ";
+		
+		List<MOrder> allPurchases = new Query(po.getCtx(), MOrder.Table_Name, isSOTrx + whereMatchesSQL.toString(), po.get_TrxName())
 		.setParameters(whereMatchesIDs)
 		.list();
 		for (MOrder purchase:allPurchases){
@@ -555,31 +565,27 @@ public class BudgetUtils{
 		{
 			String whereSQL = whereMatchesSQL.toString().replace("DateOrdered", "DateAcct");
 			List<MInvoice> allInvoices = new Query(po.getCtx(), MInvoice.Table_Name, 
-					whereSQL.toString(), po.get_TrxName())
+				 isSOTrx + whereSQL.toString(), po.get_TrxName())
 			.setParameters(whereMatchesIDs)
 			.list();
 			for (MInvoice invoice:allInvoices){
-				if (invoice.getC_Order_ID()>0) continue;
-				if (invoice.isSOTrx()) continue;
+				if (invoice.getC_Order_ID()>0 || invoice.getC_Payment_ID()>0) continue;
 				totalAmt = totalAmt.add(invoice.getGrandTotal());
 			}
 		}
 		if (budgetCONFIGinstance.isPaymentToo())
 		{
-			String whereSQL = whereMatchesSQL.toString().replace("DateOrdered", "DateAcct");
-			whereSQL = whereSQL.toString().replace("IsSOTrx = 'N' AND ", ""); 
+			String whereSQL = whereMatchesSQL.toString().replace("DateOrdered", "DateAcct"); 
 			List<MPayment> allPayments = new Query(po.getCtx(), MPayment.Table_Name, 
 					whereSQL, po.get_TrxName())
 			.setParameters(whereMatchesIDs)
 			.list();
 			for (MPayment payment:allPayments){
-				if (payment.getC_Invoice_ID()>0) continue;
-				if (payment.getC_Order_ID()>0) continue;
-				if (payment.getC_DocType().isSOTrx()) continue;
+				if (payment.getC_Invoice_ID()>0 || payment.getC_Order_ID()>0) continue;
+				if (isPurchasing == payment.getC_DocType().isSOTrx()) continue;
 				totalAmt = totalAmt.add(payment.getPayAmt());
 			}
 		}
-		
 		return totalAmt;
 	}
 
@@ -694,8 +700,12 @@ public class BudgetUtils{
 		log.fine("private static  BudgetLine lookupBudgetRule(PO po, List<KeyNamePair>matches, StringBuffer whereClause)");
 		//FETCH ONLY EXACT BUDGETLINE THAT HAS DOCUMENT'S CRITERIA (EFFICIENT)
 		//WHERE CLAUSE FROM DOCUMENT'S MAIN CRITERIA
-	
-		List<BudgetLine> matchedLines = new Query(po.getCtx(), BudgetLine.Table_Name, whereClause.toString() 
+		//ONLY PURCHASING DOCTYPES - SPLIT TO SALES ALSO VIA ISSOTRX SWAP
+		if (isPurchasing)  
+			isSOTrx = "isSOTrx='N' AND ";
+		else
+			isSOTrx = "isSOTrx='Y' AND ";
+		List<BudgetLine> matchedLines = new Query(po.getCtx(), BudgetLine.Table_Name, isSOTrx + whereClause.toString() 
 		+" AND "+I_GL_Journal.COLUMNNAME_GL_Journal_ID+"="+targetBudget.getGL_Journal_ID(), po.get_TrxName())
 		.setParameters(whereMatchesIDs)
 		.setOnlyActiveRecords(true)
@@ -704,12 +714,13 @@ public class BudgetUtils{
 		//ITERATE POSSIBLE MATCHES BUT RULE OUT PERIOD, ORG AND PARTNER (FOR PURCHASE) UNTIL EXACT MATCH OR NULL
 		BudgetLine matchedLine = null;
 	
-		int counter = 0; //if counter incremented twice it means extra ambiguous Budget Rules for same match.
+		int counter = 0; //if counter incremented it means extra ambiguous Budget Rules for same match.
 		
-		for (BudgetLine line:matchedLines) {
+		for (BudgetLine line:matchedLines) { 
 			if ((matches.get(0).getKey()!=line.getC_Period_ID()) && (line.getC_Period_ID()!=0)) continue;
 			if ((matches.get(1).getKey()!=line.getAD_OrgDoc_ID()) && (line.getAD_OrgDoc_ID()!=0)) continue;
-			if (!(po instanceof MJournalLine) && (matches.get(2).getKey()!=line.get_ValueAsInt(I_C_Order.COLUMNNAME_C_BPartner_ID)) && (line.get_ValueAsInt(I_C_Order.COLUMNNAME_C_BPartner_ID)!=0)) continue;
+			if (!(po instanceof MJournalLine) && (matches.get(2).getKey()!=line.get_ValueAsInt(I_C_Order.COLUMNNAME_C_BPartner_ID)) 
+					&& (line.get_ValueAsInt(I_C_Order.COLUMNNAME_C_BPartner_ID)!=0)) continue;
 			matchedLine = line;
 			counter++;
 		}
@@ -728,7 +739,7 @@ public class BudgetUtils{
 	 * SET PRORATA IF MATCHED LINE HAS PERIOD ID, I.E. MONTHLY BASE
 	 */
 	private static void checkProrata(BudgetLine matchedLine) {
-		 if (matchedLine.getC_Period_ID()>0)
+		 if (matchedLine.getC_Period_ID()>0 || isMonthToMonth)
 			 isProrata = true;
 	}
 
@@ -794,13 +805,13 @@ public class BudgetUtils{
 		BigDecimal returnAmount;
 		BigDecimal startAmt = Env.ZERO;
 		BigDecimal lastAmt = Env.ZERO;
-		if (runtimePO instanceof MJournal){
+		if (runtimePO instanceof MJournalLine){
 			startAmt = selectAccountingFacts(line, EQUAL, startYear, startMonth);
 			lastAmt = selectAccountingFacts(line, EQUAL, pastYear, pastMonth);
 		}
 		else {
-			startAmt = selectPurchases(line, MORE_EQUAL, startYear, startMonth);
-			lastAmt = selectPurchases(line, MORE_EQUAL, pastYear, pastMonth);
+			startAmt = selectPurchasesSales(line, MORE_EQUAL, startYear, startMonth);
+			lastAmt = selectPurchasesSales(line, MORE_EQUAL, pastYear, pastMonth);
 		}
 		if (lastAmt.equals(Env.ZERO)) 
 			throw new AdempiereException("LAST YEAR/MONTH HAS NO AMOUNT");
@@ -844,7 +855,7 @@ public class BudgetUtils{
 				whereMatchesIDs.remove(0);
 			}
 			else {
-				if (!(runtimePO instanceof MJournal)) {
+				if (!(runtimePO instanceof MJournalLine)) {
 					changePeriodToTimestamp(matchedBudgetLine.getC_Period_ID());
 					removematch = "("+I_GL_JournalLine.COLUMNNAME_C_Period_ID+"=? OR ";
 	 				matchRemoved = whereMatchesSQL.toString().replace(removematch, "");
@@ -898,7 +909,7 @@ public class BudgetUtils{
 		matchRemoved = whereMatchesSQL.toString().replace(removematch, "");
 		whereMatchesSQL = new StringBuffer(matchRemoved);
 		//FINAL
-		if (!(runtimePO instanceof MJournal)){ //remove "AND Account_ID=?"
+		if (!(runtimePO instanceof MJournalLine)){ //remove "AND Account_ID=?"
 			removematch = "Account_ID=? AND ";
 			matchRemoved = whereMatchesSQL.toString().replace(removematch, "");
 			whereMatchesSQL = new StringBuffer(matchRemoved);
@@ -934,17 +945,17 @@ public class BudgetUtils{
 			 baseAmt = RevenueEstimate.divide(new BigDecimal(12),2);
 		
 		if (budgetPercent.compareTo(Env.ZERO)>0) 
-			if (baseAmt.multiply(budgetPercent).divide(Env.ONEHUNDRED,2).compareTo(todateAmount)<0 || budgetCONFIGinstance.getDescription().contains("DEBUG")) {
+			if (baseAmt.multiply(budgetPercent).divide(Env.ONEHUNDRED,2).compareTo(todateAmount)<0 || budgetCONFIGinstance.isDebugMode()) {
 				BigDecimal diff = baseAmt.multiply(budgetPercent).divide(Env.ONEHUNDRED,2).subtract(todateAmount);
-				return throwBudgetExceedMessage(diff.setScale(2,BigDecimal.ROUND_UP).toString()+", "+budgetPercent.setScale(2,BigDecimal.ROUND_UP).toString()+"% OF "
-				+baseAmt.setScale(2,BigDecimal.ROUND_UP).toString()+" REVENUE, ",todateAmount, whereMatches);			 
+				return throwBudgetExceedMessage(diff.setScale(2, RoundingMode.UP).toString()+", "+budgetPercent.setScale(2, RoundingMode.UP).toString()+"% OF "
+				+baseAmt.setScale(2, RoundingMode.UP).toString()+" REVENUE, ",todateAmount, whereMatches);			 
 			} else log.finest("TO-DATE: "+todateAmount+" WITHIN "+budgetPercent+"% OF "+baseAmt+" BUDGET.");
 
 		if (budgetAmount.compareTo(Env.ZERO)>0) {
 			if (budgetAmount.compareTo(todateAmount)<0 || budgetCONFIGinstance.getDescription().contains("DEBUG")) {
 				BigDecimal diff = budgetAmount.subtract(todateAmount);
-				return throwBudgetExceedMessage(diff.setScale(2, BigDecimal.ROUND_UP).toString()+", "
-				+budgetAmount.setScale(2,BigDecimal.ROUND_UP).toString()+" BUDGET, ", todateAmount, whereMatches);
+				return throwBudgetExceedMessage(diff.setScale(2, RoundingMode.UP).toString()+", "
+				+budgetAmount.setScale(2, RoundingMode.UP).toString()+" BUDGET, ", todateAmount, whereMatches);
 			} else log.finest(todateAmount+" AMOUNT WITHIN BUDGET OF "+budgetAmount);
 		}
 		return null;//no error
@@ -958,7 +969,7 @@ public class BudgetUtils{
 	 */
 	private static String throwBudgetExceedMessage(String description, BigDecimal totalAmt, List<KeyNamePair> matches) {
 		log.fine("private static String throwBudgetExceedMessage(..");
-		totalAmt = totalAmt.setScale(2);
+		totalAmt = totalAmt.setScale(2, RoundingMode.UP);
 		log.finer("EXCEED BY "+description+" TO-DATE: "+totalAmt+", TREND: "+PRORATA+budgetCONFIGinstance.getBudgetTrend());
 		return "EXCEED > "+description+" TO-DATE: " + totalAmt+", TREND: "+PRORATA+budgetCONFIGinstance.getBudgetTrend();		
 	}
@@ -981,6 +992,8 @@ public class BudgetUtils{
 //		List<Integer> presentPeriods = new ArrayList<Integer>(); //for present Year periods
 		for (MYear year:years){			 
 			//MAIN
+			if (year.getFiscalYear().equals(presentYear))
+				continue;
 			List<MPeriod> periodsMOM = new Query(line.getCtx(), MPeriod.Table_Name, MPeriod.COLUMNNAME_C_Year_ID+"=?", line.get_TrxName())
 			.setParameters(year.getC_Year_ID())
 			//.setOrderBy(MPeriod.COLUMNNAME_C_Period_ID)
@@ -1000,7 +1013,6 @@ public class BudgetUtils{
  				}
  			}
 		}
-
 		log.finest("MonthToMonth Array: "+mom.toString()+" START YEAR: "+startYear+" PREVIOUS MONTHS: "+previousMonths);
 		return firstPeriodOfYear;
 	}
@@ -1011,13 +1023,14 @@ public class BudgetUtils{
 	 * @param totalAmt
 	 * @return
 	 */
-	private static BigDecimal historicalCondition(BigDecimal newAmt, BigDecimal oldAmt) {
-		if (budgetCONFIGinstance.getDescription()==null) return newAmt;
- 		if (budgetCONFIGinstance.getDescription().contains("GENERATE BETWEEN")) 
+	private static BigDecimal alignPreviousFigure(BigDecimal newAmt, BigDecimal oldAmt) { 
+		if (GenerateBudget.p_AlignPrevious==null) 
+			return newAmt;
+ 		if (GenerateBudget.p_AlignPrevious.equals("A")) 
 			return newAmt.add(oldAmt).divide(new BigDecimal(2),2);
-		if (budgetCONFIGinstance.getDescription().equals("GENERATE HIGHER"))
+		if (GenerateBudget.p_AlignPrevious.equals("H"))
 			return newAmt.max(oldAmt);
-		if (budgetCONFIGinstance.getDescription().equals("GENERATE LOWER"))
+		if (GenerateBudget.p_AlignPrevious.equals("L"))
 			return newAmt.min(oldAmt);	
 		return newAmt;
 	}

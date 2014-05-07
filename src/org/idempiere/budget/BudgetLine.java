@@ -17,20 +17,14 @@
 package org.idempiere.budget;
  
 import java.math.BigDecimal;
-import java.sql.ResultSet; 
-import java.util.ArrayList;
+import java.sql.ResultSet;
 import java.util.List;
 import java.util.Properties;
- 
-import org.adempiere.exceptions.AdempiereException;
+
 import org.adempiere.model.POWrapper;
-import org.compiere.model.I_GL_Journal;
-import org.compiere.model.MJournal;  
+import org.compiere.model.MJournal;
 import org.compiere.model.MJournalLine;
-import org.compiere.model.MOrder;
-import org.compiere.model.PO;
 import org.compiere.model.Query;
-import org.compiere.util.KeyNamePair;
 
 public class BudgetLine extends MJournalLine {
 
@@ -89,5 +83,10 @@ public class BudgetLine extends MJournalLine {
     public void setAD_OrgDoc_ID(int id) {
     	budgetLine.setAD_OrgDoc_ID(id);
     }
-    
+    public boolean isSOTrx(){
+    	return budgetLine.isSOTrx();
+    }
+    public void setIsSOTrx(boolean IsSOTrx){
+    	budgetLine.setIsSOTrx(IsSOTrx);
+    }
 }

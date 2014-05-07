@@ -4,14 +4,15 @@ import java.math.BigDecimal;
 import java.util.Properties;
 
 import org.adempiere.base.IColumnCallout;
+import org.compiere.model.CalloutEngine;
 import org.compiere.model.GridField;
 import org.compiere.model.GridTab;
 import org.compiere.util.Env;
 import org.idempiere.budget.MBudgetConfig;
 
-public class BudgetConfig implements IColumnCallout {
+public class BudgetConfigCallout extends CalloutEngine implements IColumnCallout {
 
-	public BudgetConfig() {
+	public BudgetConfigCallout() {
 		 	}
 
 	@Override
