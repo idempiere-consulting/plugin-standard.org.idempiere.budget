@@ -4,12 +4,12 @@
    <extension
          point="org.adempiere.base.IColumnCallout">
       <callout
-            class="org.budget.callout.BudgetConfig"
+            class="org.budget.callout.BudgetConfigCallout"
             columnName="GL_Budget_Previous_Year"
             tableName="GL_BudgetConfig">
       </callout>
       <callout
-            class="org.budget.callout.BudgetConfig"
+            class="org.budget.callout.BudgetConfigCallout"
             columnName="GL_Budget_Previous_Month"
             tableName="GL_BudgetConfig">
       </callout>
