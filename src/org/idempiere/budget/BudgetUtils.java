@@ -64,8 +64,7 @@ public class BudgetUtils{
 	private static int firstPeriodOfYear;
 	
 	private static boolean isMonthToMonth;
-	private static boolean isProrata = false;
-	private static String PRORATA=""; 
+	private static boolean isProrata = false; 
 	private static List<Integer>mom = new ArrayList<Integer>(); 
 	private static final String MORE_EQUAL = ">=";
 	private static final String EQUAL = "=";
@@ -973,8 +972,8 @@ public class BudgetUtils{
 	private static String throwBudgetExceedMessage(String description, BigDecimal totalAmt, List<KeyNamePair> matches) {
 		log.fine("private static String throwBudgetExceedMessage(..");
 		totalAmt = totalAmt.setScale(2, RoundingMode.UP);
-		log.finer("EXCEED BY "+description+" TO-DATE: "+totalAmt+", TREND: "+PRORATA+budgetCONFIGinstance.getBudgetTrend());
-		return "EXCEED > "+description+" TO-DATE: " + totalAmt+", TREND: "+PRORATA+budgetCONFIGinstance.getBudgetTrend();		
+		log.finer("EXCEED BY "+description+" TO-DATE: "+totalAmt+", TREND: "+(isProrata? "PRORATA - ":"")+budgetCONFIGinstance.getBudgetTrend());
+		return "EXCEED > "+description+" TO-DATE: " + totalAmt+", TREND: "+(isProrata? "PRORATA - ":"")+budgetCONFIGinstance.getBudgetTrend();		
 	}
 	
 	/**
