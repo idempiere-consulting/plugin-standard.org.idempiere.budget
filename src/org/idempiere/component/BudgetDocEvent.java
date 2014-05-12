@@ -86,7 +86,8 @@ public class BudgetDocEvent extends AbstractEventHandler{
 		//JOURNAL DOCUMENT VALIDATION BEFORE COMPLETE
 		//BUDGET CONTROL OVER ACCOUNTING ELEMENT TO EITHER PERCENT OR AMOUNT
 		//ACCESS GL BUDGET LINES FOR MATCHING TO JOURNAL-LINES CRITERIA
-		else if (po instanceof MJournal && IEventTopics.DOC_BEFORE_COMPLETE == type){
+		else if (po instanceof MJournal && IEventTopics.DOC_BEFORE_COMPLETE == type 
+				&& po.get_Value(MJournal.COLUMNNAME_PostingType).equals(MJournal.POSTINGTYPE_Actual)){
 			log.info(" topic="+event.getTopic()+" po="+po);
 			//SET VARIABLES FOR MATCHED BUDGETLINE PERCENT OR AMOUNT
 			String error = BudgetUtils.eventGLJournal(po);

@@ -113,7 +113,7 @@ public class GenerateBudget extends SvrProcess {
          	}
         	else if (tbl.getAccount_ID()!=508){
         		//GENERATE BUDGET FOR MATCHING ACCOUNTING ELEMENT 
-        		BudgetUtils.runtimePO = tbl;
+        		BudgetUtils.runtimePO = tbl.getParent();
          	}
            	int c = BudgetUtils.generateBudgetLine(tbl, newbudget); 
            	if (c>0){
