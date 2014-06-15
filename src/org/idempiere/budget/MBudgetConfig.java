@@ -3,6 +3,7 @@ package org.idempiere.budget;
 import java.sql.ResultSet;
 import java.util.Properties;
 
+
 public class MBudgetConfig extends X_GL_BudgetConfig {
 
 	/**
