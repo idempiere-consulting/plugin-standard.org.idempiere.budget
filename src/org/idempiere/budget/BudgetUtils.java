@@ -329,7 +329,7 @@ public class BudgetUtils{
 		if (matchedBudgetLine!=null){ 
 			checkCreditOrDebit(matchedBudgetLine);
 			checkProrata(matchedBudgetLine); 
-			sDoc.paramTrimming(matchedBudgetLine, false);	
+			sDoc.paramTrimming(matchedBudgetLine, runtimePO);	
 			BigDecimal totalPurchasesSales = selectPurchasesSales(matchedBudgetLine, EQUAL, presentYear, previousMonths);
 			if (!hasProduct) //hasProduct case already added in matchedProductQty(po)
 				totalPurchasesSales = totalPurchasesSales.add(getGrandTotal(po)); 
@@ -415,7 +415,7 @@ public class BudgetUtils{
 			if (matchedBudgetLine==null) return null;
 			checkCreditOrDebit(matchedBudgetLine);
 			checkProrata(matchedBudgetLine);  
-			sDoc.paramTrimming(matchedBudgetLine, false);
+			sDoc.paramTrimming(matchedBudgetLine, runtimePO);
 			//get total of all related accounting facts for the year <with rules applied> 
 			BigDecimal totFactAmt = selectAccountingFacts(matchedBudgetLine, EQUAL, 
 					presentYear,presentMonth, revenueKey);

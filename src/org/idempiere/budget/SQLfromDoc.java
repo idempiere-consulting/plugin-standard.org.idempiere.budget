@@ -222,7 +222,8 @@ public class SQLfromDoc {
 			if (po.get_ValueAsInt(I_C_Order.COLUMNNAME_C_Campaign_ID)>0)  
 				matches.add(new KeyNamePair(po.get_ValueAsInt(I_C_Order.COLUMNNAME_C_Campaign_ID), I_C_Order.COLUMNNAME_C_Campaign_ID));		
 			else matches.add(new KeyNamePair(0,I_C_Order.COLUMNNAME_C_Campaign_ID));
-	 		}
+			matches.add(new KeyNamePair(0, "Account_ID")); // null for non-journal (Purchase etc).
+			}
 
 		log.finer("MATCHES FROM DOC: "+matches.toString());
 		return matches;
@@ -232,7 +233,7 @@ public class SQLfromDoc {
 	 * @param matchedMJournalLine
 	 * @param sDoc 
 	 */
-	public void paramTrimming(MBudgetPlanLine matchedMJournalLine, boolean purchaseGenerate) {
+	public void paramTrimming(MBudgetPlanLine matchedMJournalLine, PO runtimepo) {
 		log.fine("paramTrimming(MJournalLine matchedMJournalLine)");
 		String removematch="";
 		String matchRemoved="";
@@ -297,7 +298,19 @@ public class SQLfromDoc {
 		removematch = "1=1) AND ";
 		matchRemoved = whereMatchesSQL.toString().replace(removematch, "");
 		whereMatchesSQL = new StringBuffer(matchRemoved);
-		//final
+		//remove last Account_ID null for non Journal
+		if (!(runtimepo instanceof MJournalLine)){
+			int size = whereMatches.size() - 1; 
+			if (size>0)
+				removematch = " AND ";
+			if (whereMatches.get(size).getName().equals("Account_ID")){
+				removematch = removematch + I_GL_JournalLine.COLUMNNAME_Account_ID+" is null";
+				matchRemoved = whereMatchesSQL.toString().replace(removematch, "");
+				whereMatchesSQL = new StringBuffer(matchRemoved);
+			}
+				
+		}
+		
 		 
 		log.finer("PARAM TRIMMING = SELECT FROM FACT_ACCT WHERE "+whereMatchesSQL+" PARAMS?: "+whereMatchesIDs.toString());
 	}
