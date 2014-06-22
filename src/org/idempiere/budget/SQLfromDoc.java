@@ -31,8 +31,7 @@ import org.compiere.model.MPeriod;
 import org.compiere.model.PO;
 import org.compiere.model.Query;
 import org.compiere.util.CLogger;
-import org.compiere.util.KeyNamePair;
-import org.idempiere.budget.BudgetUtils;
+import org.compiere.util.KeyNamePair; 
 
 public class SQLfromDoc {
 

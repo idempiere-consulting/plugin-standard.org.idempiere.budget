@@ -417,8 +417,8 @@ public class BudgetUtils{
 			checkProrata(matchedBudgetLine);  
 			sDoc.paramTrimming(matchedBudgetLine, runtimePO);
 			//get total of all related accounting facts for the year <with rules applied> 
-			BigDecimal totFactAmt = selectAccountingFacts(matchedBudgetLine, EQUAL, 
-					presentYear,presentMonth, revenueKey);
+			BigDecimal totFactAmt = selectAccountingFacts(matchedBudgetLine, previousMonths>0? MORE_EQUAL:EQUAL, 
+					presentYear,startMonth, revenueKey);
 			totFactAmt = totFactAmt.add(getAmtSource(null, journalLine));
 			return budgetAgainstToDate(totFactAmt, matchedBudgetLine, sDoc);
 		}
