@@ -13,13 +13,25 @@
             columnName="GL_Budget_Previous_Month"
             tableName="GL_BudgetConfig">
       </callout>
+      <callout
+            class="org.budget.callout.LookupBase"
+            columnName="IsGenerated"
+            tableName="B_BudgetPlanLine">
+      </callout>
    </extension>
    <extension
-         id="org.idempiere.budget.GenerateBudget"
-         name="Generate Budget Journal"
+         id="org.idempiere.budget.ResetBudget"
+         name="Reset Budget Config"
          point="org.adempiere.base.Process">
       <process
-            class="org.idempiere.budget.GenerateBudget">
+            class="org.idempiere.budget.ResetBudget">
+      </process>
+   </extension>
+   <extension
+         id="org.idempiere.budget.PopulateAccounts"
+         point="org.adempiere.base.Process">
+      <process
+            class="org.idempiere.budget.PopulateAccounts">
       </process>
    </extension>
 
