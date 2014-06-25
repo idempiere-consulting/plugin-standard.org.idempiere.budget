@@ -232,7 +232,10 @@ public class LookupBase implements IColumnCallout {
 		baseAmt = baseAmt.setScale(2,RoundingMode.HALF_EVEN);
 
 		//full description string for output
-		desc = desc.append(prorata+" ").append(bg.referenceBase+": ").append(baseAmt+" ")
+		String original = "";
+		if (bg.originalBase!=null)
+			original = bg.originalBase.compareTo(baseAmt)==0? "":"("+bg.originalBase+")";
+		desc = desc.append(prorata.isEmpty()? "":prorata).append(bg.referenceBase+":").append(original.isEmpty()? "":original).append(" "+baseAmt+" ")
 				.append(yearDesc+": ").append(previousValue+" ").append(isSalesTrx+" ")
 				.append(result+" Value: ").append(value+" ").append(yoy+trend+": "+BudgetUtils.budgetCONFIGinstance.getBudgetTrend());
 		

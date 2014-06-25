@@ -92,7 +92,8 @@ public class BudgetUtils{
 	public boolean hasProduct = false;
 	private List<MBudgetPlanLine> matchedProdQtyArray = new ArrayList<MBudgetPlanLine>();
 	private BigDecimal figure = Env.ZERO;
-	private boolean isJournal; 
+	private boolean isJournal;
+	public BigDecimal originalBase; 
 	
 	public void setSQLfromDoc(SQLfromDoc sDoc){
 		this.sDoc = sDoc;
@@ -871,8 +872,9 @@ public class BudgetUtils{
 		BigDecimal baseAmt;
 		MElementValue account = new MElementValue(matchedBudgetLine.getCtx(),matchedBudgetLine.getPercentageBase_ID(),matchedBudgetLine.get_TrxName());
 		String baseAcct = account.getValue();
-		baseAmt = selectAccountingFacts(matchedBudgetLine, MORE_EQUAL, startYear, startMonth, baseAcct);
-		baseAmt = byReference(matchedBudgetLine, baseAmt);
+		originalBase = selectAccountingFacts(matchedBudgetLine, MORE_EQUAL, startYear, startMonth, baseAcct);
+		originalBase = originalBase.setScale(2,RoundingMode.HALF_EVEN);
+		baseAmt = byReference(matchedBudgetLine, originalBase);
 		baseAmt = budgetTrend(matchedBudgetLine,baseAmt,baseAcct);
 		revenueFlag = false;//turn off
 		referenceBase =  account.getName().toUpperCase();
