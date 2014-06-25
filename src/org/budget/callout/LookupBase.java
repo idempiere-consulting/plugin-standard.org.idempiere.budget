@@ -176,6 +176,14 @@ public class LookupBase implements IColumnCallout {
 				sDoc.stripPeriod(); //get Period ID off match-set cos this is for Sales/Purchases
 			yoy = "(YOY) ";
 			value = bg.yearOnYear(period_ID, model);
+			if (isSOTrx){
+				bg.isPurchasing = false;
+				isSalesTrx = "Sales";
+			}
+			else {
+				bg.isPurchasing = true;
+				isSalesTrx = "Purchasing";
+			}
 		}
 		else{
 			//normal LookUp

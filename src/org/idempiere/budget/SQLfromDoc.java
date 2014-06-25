@@ -359,7 +359,7 @@ public class SQLfromDoc {
 			if (match.getKey()>0)
 				params.add((new Integer(match.getID())).intValue());
 		}
-		if (params.isEmpty()) return null;
+		if (params.isEmpty()) return params;
 		log.finer("MATCHES TO IDS - PARAMS: "+params.toString());
 		return params;
 	}
