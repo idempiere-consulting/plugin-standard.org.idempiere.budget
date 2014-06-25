@@ -336,7 +336,7 @@ public class SQLfromDoc {
 			if (period.isStandardPeriod()) {
 			Timestamp start = period.getStartDate();
 			Timestamp end = period.getEndDate();
-			if (whereMatchesIDs.size()>0)
+			if (whereMatchesSQL.length()>0)
 				whereMatchesSQL.append(" AND ");
 			whereMatchesSQL.append(new StringBuffer("DateOrdered >= ? AND DateOrdered <= ?"));
 			whereMatchesIDs.add(start);
@@ -369,14 +369,13 @@ public class SQLfromDoc {
 	 */
 	public void stripPeriod() {
 		String removematch = "";
-		if (whereMatchesIDs.size()>1)
+		if (whereMatchesIDs.size()>0){
 			removematch = MBudgetPlanLine.COLUMNNAME_C_Period_ID+"=? AND ";
-		else
-			removematch = MBudgetPlanLine.COLUMNNAME_C_Period_ID+"=? ";
-		String matchRemoved = whereMatchesSQL.toString().replace(removematch, "");
-		whereMatchesSQL = new StringBuffer(matchRemoved);	
-		whereMatches.remove(0);
-		whereMatchesIDs.remove(0); 
+			String matchRemoved = whereMatchesSQL.toString().replace(removematch, "");
+			whereMatchesSQL = new StringBuffer(matchRemoved);	
+			whereMatches.remove(0);
+			whereMatchesIDs.remove(0); 
+		}
 	}
 
 }
