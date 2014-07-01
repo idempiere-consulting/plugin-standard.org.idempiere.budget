@@ -25,6 +25,7 @@ import org.idempiere.budget.MBudgetConfig;
 import org.idempiere.budget.MBudgetPlan;
 import org.idempiere.budget.MBudgetPlanLine;
 import org.idempiere.budget.MBudgetReference;
+import org.idempiere.budget.MIBudget;
 
 public class BudgetModelFactory implements IModelFactory {
 
@@ -41,6 +42,9 @@ public class BudgetModelFactory implements IModelFactory {
 		 } 
 		 if (tableName.equals(MBudgetReference.Table_Name)){
 			 return MBudgetReference.class;
+		 } 
+		 if (tableName.equals(MIBudget.Table_Name)){
+			 return MIBudget.class;
 		 } 
 		return null;
 	}
@@ -59,6 +63,9 @@ public class BudgetModelFactory implements IModelFactory {
 		 if (tableName.equals(MBudgetReference.Table_Name)) {
 		     return new MBudgetReference(Env.getCtx(), Record_ID, trxName);
 		 } 
+		 if (tableName.equals(MIBudget.Table_Name)) {
+		     return new MIBudget(Env.getCtx(), Record_ID, trxName);
+		 } 
 		 return null;
 	}
 
@@ -75,6 +82,9 @@ public class BudgetModelFactory implements IModelFactory {
 		   }
 		 if (tableName.equals(MBudgetReference.Table_Name)) {
 		     return new MBudgetReference(Env.getCtx(), rs, trxName);		 			     
+		   }
+		 if (tableName.equals(MIBudget.Table_Name)) {
+		     return new MIBudget(Env.getCtx(), rs, trxName);		 			     
 		   }
 		 return null;
 	}

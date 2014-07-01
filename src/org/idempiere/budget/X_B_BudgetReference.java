@@ -33,7 +33,7 @@ public class X_B_BudgetReference extends PO implements I_B_BudgetReference, I_Pe
 	/**
 	 *
 	 */
-	private static final long serialVersionUID = 20140613L;
+	private static final long serialVersionUID = 20140702L;
 
     /** Standard Constructor */
     public X_B_BudgetReference (Properties ctx, int B_BudgetReference_ID, String trxName)
@@ -167,6 +167,20 @@ public class X_B_BudgetReference extends PO implements I_B_BudgetReference, I_Pe
 		if (ii == null)
 			 return 0;
 		return ii.intValue();
+	}
+
+	/** Set B_BudgetReference_UU.
+		@param B_BudgetReference_UU B_BudgetReference_UU	  */
+	public void setB_BudgetReference_UU (String B_BudgetReference_UU)
+	{
+		set_Value (COLUMNNAME_B_BudgetReference_UU, B_BudgetReference_UU);
+	}
+
+	/** Get B_BudgetReference_UU.
+		@return B_BudgetReference_UU	  */
+	public String getB_BudgetReference_UU () 
+	{
+		return (String)get_Value(COLUMNNAME_B_BudgetReference_UU);
 	}
 
 	/** Set Project.

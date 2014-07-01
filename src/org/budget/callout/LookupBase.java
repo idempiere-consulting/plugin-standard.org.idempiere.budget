@@ -5,17 +5,16 @@ import java.math.RoundingMode;
 import java.util.Properties;
 
 import org.adempiere.base.IColumnCallout;
-import org.compiere.model.CalloutEngine;
 import org.compiere.model.GridField;
 import org.compiere.model.GridTab;
-import org.idempiere.budget.MBudgetPlanLine;
 import org.compiere.model.MJournalLine;
 import org.compiere.model.MOrder;
-import org.idempiere.budget.X_B_BudgetPlanLine;
 import org.compiere.util.Env;
 import org.compiere.util.Msg;
 import org.idempiere.budget.BudgetUtils;
+import org.idempiere.budget.MBudgetPlanLine;
 import org.idempiere.budget.SQLfromDoc;
+import org.idempiere.budget.X_B_BudgetPlanLine;
 
 public class LookupBase implements IColumnCallout {
 

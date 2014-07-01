@@ -112,6 +112,15 @@ public interface I_B_BudgetReference
 	/** Get Budget Reference	  */
 	public int getB_BudgetReference_ID();
 
+    /** Column name B_BudgetReference_UU */
+    public static final String COLUMNNAME_B_BudgetReference_UU = "B_BudgetReference_UU";
+
+	/** Set B_BudgetReference_UU	  */
+	public void setB_BudgetReference_UU (String B_BudgetReference_UU);
+
+	/** Get B_BudgetReference_UU	  */
+	public String getB_BudgetReference_UU();
+
     /** Column name C_Project_ID */
     public static final String COLUMNNAME_C_Project_ID = "C_Project_ID";
 
