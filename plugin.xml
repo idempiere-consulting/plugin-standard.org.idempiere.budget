@@ -34,5 +34,12 @@
             class="org.idempiere.budget.PopulateAccounts">
       </process>
    </extension>
+   <extension
+         id="org.idempiere.budget.ImportBudget"
+         point="org.adempiere.base.Process">
+      <process
+            class="org.idempiere.budget.ImportBudget">
+      </process>
+   </extension>
 
 </plugin>
