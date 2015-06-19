@@ -24,6 +24,7 @@ import java.util.List;
 import org.compiere.model.I_C_Order;
 import org.compiere.model.I_GL_Journal;
 import org.compiere.model.I_GL_JournalLine;
+import org.compiere.model.MAccount;
 import org.compiere.model.MJournal;
 import org.compiere.model.MJournalLine;
 import org.compiere.model.MOrder;
@@ -31,7 +32,7 @@ import org.compiere.model.MPeriod;
 import org.compiere.model.PO;
 import org.compiere.model.Query;
 import org.compiere.util.CLogger;
-import org.compiere.util.KeyNamePair; 
+import org.compiere.util.KeyNamePair;
 
 public class SQLfromDoc {
 
@@ -185,11 +186,11 @@ public class SQLfromDoc {
 			.setParameters(journalLine.getGL_Journal_ID()).firstOnly();
 			matches.add(new KeyNamePair(journal.getC_Period_ID(), I_GL_Journal.COLUMNNAME_C_Period_ID));
 			//AD_Org_ID handling same as Period ID in MOrder
-			matches.add(new KeyNamePair(po.getAD_Org_ID(),"AD_OrgDoc_ID"));
+			matches.add(new KeyNamePair(MAccount.get(po.getCtx(), journalLine.getC_ValidCombination_ID()).getAD_Org_ID(),"AD_OrgDoc_ID"));
 			//Account ID is mandatory in GL Journal
-			matches.add(new KeyNamePair(journalLine.getAccount_ID(), "Account_ID"));
-			if (journalLine.getC_Project_ID()>0) 
-				matches.add(new KeyNamePair(journalLine.getC_Project_ID(), I_GL_JournalLine.COLUMNNAME_C_Project_ID));
+			matches.add(new KeyNamePair(MAccount.get(po.getCtx(), journalLine.getC_ValidCombination_ID()).getAccount_ID(), "Account_ID"));
+			if (MAccount.get(po.getCtx(), journalLine.getC_ValidCombination_ID()).getC_Project_ID()>0) 
+				matches.add(new KeyNamePair(MAccount.get(po.getCtx(), journalLine.getC_ValidCombination_ID()).getC_Project_ID(), I_GL_JournalLine.COLUMNNAME_C_Project_ID));
 			else matches.add(new KeyNamePair(0,I_GL_JournalLine.COLUMNNAME_C_Project_ID));
 			if (journalLine.getC_Activity_ID()>0) 
 				matches.add(new KeyNamePair(journalLine.getC_Activity_ID(), I_GL_JournalLine.COLUMNNAME_C_Activity_ID));
@@ -197,11 +198,11 @@ public class SQLfromDoc {
 			if (journalLine.getC_Campaign_ID()>0) 
 				matches.add(new KeyNamePair(journalLine.getC_Campaign_ID(), I_GL_JournalLine.COLUMNNAME_C_Campaign_ID));
 			else matches.add(new KeyNamePair(0,I_GL_JournalLine.COLUMNNAME_C_Campaign_ID));
-			if (journalLine.getC_BPartner_ID()>0)
-				matches.add(new KeyNamePair(journalLine.getC_BPartner_ID(), I_GL_JournalLine.COLUMNNAME_C_BPartner_ID));
+			if (MAccount.get(po.getCtx(), journalLine.getC_ValidCombination_ID()).getC_BPartner_ID()>0)
+				matches.add(new KeyNamePair(MAccount.get(po.getCtx(), journalLine.getC_ValidCombination_ID()).getC_BPartner_ID(), I_GL_JournalLine.COLUMNNAME_C_BPartner_ID));
 			else matches.add(new KeyNamePair(0,I_GL_JournalLine.COLUMNNAME_C_BPartner_ID));
-			if (journalLine.getM_Product_ID()>0)
-				matches.add(new KeyNamePair(journalLine.getM_Product_ID(), I_GL_JournalLine.COLUMNNAME_M_Product_ID));
+			if (MAccount.get(po.getCtx(), journalLine.getC_ValidCombination_ID()).getM_Product_ID()>0)
+				matches.add(new KeyNamePair(MAccount.get(po.getCtx(), journalLine.getC_ValidCombination_ID()).getM_Product_ID(), I_GL_JournalLine.COLUMNNAME_M_Product_ID));
 			else matches.add(new KeyNamePair(0,I_GL_JournalLine.COLUMNNAME_M_Product_ID));
 		}
 		else {//for all DocType - Purchase, Invoice and Payment

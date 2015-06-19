@@ -22,9 +22,12 @@ import org.adempiere.base.IModelFactory;
 import org.compiere.model.PO;
 import org.compiere.util.Env;
 import org.idempiere.budget.MBudgetConfig;
+import org.idempiere.budget.MBudgetLine;
+import org.idempiere.budget.MBudgetPeriod;
 import org.idempiere.budget.MBudgetPlan;
 import org.idempiere.budget.MBudgetPlanLine;
 import org.idempiere.budget.MBudgetReference;
+import org.idempiere.budget.MBudgetYear;
 import org.idempiere.budget.MIBudget;
 
 public class BudgetModelFactory implements IModelFactory {
@@ -46,6 +49,15 @@ public class BudgetModelFactory implements IModelFactory {
 		 if (tableName.equals(MIBudget.Table_Name)){
 			 return MIBudget.class;
 		 } 
+		 if (tableName.equals(MBudgetYear.Table_Name)){
+			 return MBudgetYear.class;
+		 } 
+		 if (tableName.equals(MBudgetPeriod.Table_Name)){
+			 return MBudgetPeriod.class;
+		 } 
+		 if (tableName.equals(MBudgetLine.Table_Name)){
+			 return MBudgetLine.class;
+		 } 
 		return null;
 	}
 
@@ -65,7 +77,16 @@ public class BudgetModelFactory implements IModelFactory {
 		 } 
 		 if (tableName.equals(MIBudget.Table_Name)) {
 		     return new MIBudget(Env.getCtx(), Record_ID, trxName);
-		 } 
+		 }
+		 if (tableName.equals(MBudgetYear.Table_Name)) {
+		     return new MBudgetYear(Env.getCtx(), Record_ID, trxName);
+		 }
+		 if (tableName.equals(MBudgetPeriod.Table_Name)) {
+		     return new MBudgetPeriod(Env.getCtx(), Record_ID, trxName);
+		 }
+		 if (tableName.equals(MBudgetLine.Table_Name)) {
+		     return new MBudgetLine(Env.getCtx(), Record_ID, trxName);
+		 }
 		 return null;
 	}
 
@@ -85,6 +106,15 @@ public class BudgetModelFactory implements IModelFactory {
 		   }
 		 if (tableName.equals(MIBudget.Table_Name)) {
 		     return new MIBudget(Env.getCtx(), rs, trxName);		 			     
+		   }
+		 if (tableName.equals(MBudgetYear.Table_Name)) {
+		     return new MBudgetYear(Env.getCtx(), rs, trxName);		 			     
+		   }
+		 if (tableName.equals(MBudgetPeriod.Table_Name)) {
+		     return new MBudgetPeriod(Env.getCtx(), rs, trxName);		 			     
+		   }
+		 if (tableName.equals(MBudgetLine.Table_Name)) {
+		     return new MBudgetLine(Env.getCtx(), rs, trxName);		 			     
 		   }
 		 return null;
 	}

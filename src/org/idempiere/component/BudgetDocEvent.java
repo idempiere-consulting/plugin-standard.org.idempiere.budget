@@ -16,6 +16,8 @@
 
 package org.idempiere.component;
 
+import java.lang.reflect.Method;
+
 import org.adempiere.base.event.AbstractEventHandler;
 import org.adempiere.base.event.IEventTopics;
 import org.adempiere.exceptions.AdempiereException;
@@ -26,8 +28,10 @@ import org.compiere.model.MNote;
 import org.compiere.model.MOrder;
 import org.compiere.model.MPayment;
 import org.compiere.model.PO;
+import org.compiere.model.Query;
 import org.compiere.util.CLogger;
 import org.idempiere.budget.BudgetUtils;
+import org.idempiere.budget.MBudgetPlanLine;
 import org.osgi.service.event.Event;
 
 public class BudgetDocEvent extends AbstractEventHandler{
@@ -61,36 +65,39 @@ public class BudgetDocEvent extends AbstractEventHandler{
 		setTrxName(po.get_TrxName());
 		BudgetUtils bg = new BudgetUtils();		
 		//USING UTILS FOR REUSE BY ADEMPIERE 361 MODELVALIDATOR
-		if (BudgetUtils.budgetCONFIGinstance == null) {
-			log.info("<<BUDGET>> RULES ONE-TIME SETTING STARTED");
-			bg.initBudgetConfig(po);
-			bg.setupCalendar(po); 	
-			bg.revenueFlag=true;
-			BudgetUtils.RevenueEstimate = bg.revenueEstimate();
-			BudgetUtils.RevenueEstimate = bg.budgetTrend(null, BudgetUtils.RevenueEstimate, BudgetUtils.revenueKey);//OBTAIN REVENUE 4XXX AMOUNT
-			bg.revenueFlag=false;
-			log.info("<<BUDGET>> RULES ONE-TIME SETTING SUCCESSFUL");
+		MBudgetPlanLine budgetPlanLine = new Query(po.getCtx(), MBudgetPlanLine.Table_Name, "", po.get_TrxName()).setOnlyActiveRecords(true).setClient_ID().first(); 
+		if (budgetPlanLine!=null) {
+			if (BudgetUtils.budgetCONFIGinstance == null) {
+				log.info("<<BUDGET>> RULES ONE-TIME SETTING STARTED");
+				bg.initBudgetConfig(po);
+				bg.setupCalendar(po); 	
+				bg.revenueFlag=true;
+				BudgetUtils.RevenueEstimate = bg.revenueEstimate();
+				BudgetUtils.RevenueEstimate = bg.budgetTrend(null, BudgetUtils.RevenueEstimate, BudgetUtils.revenueKey);//OBTAIN REVENUE 4XXX AMOUNT
+				bg.revenueFlag=false;
+				log.info("<<BUDGET>> RULES ONE-TIME SETTING SUCCESSFUL");
 			}
  
-		//ORDER DOCUMENT VALIDATION BEFORE COMPLETE
-		if ((po instanceof MOrder || po instanceof MInvoice || po instanceof MPayment) && IEventTopics.DOC_BEFORE_PREPARE == type){ 
-			log.info(" topic="+event.getTopic()+" po="+po);
-			//SET VARIABLES FOR MATCHED BUDGETLINE PERCENT OR AMOUNT
-			String response = bg.eventPurchasesSales(po);			
-			if (response != null)
-				handleResponse(response, po);
-			}
+			//ORDER DOCUMENT VALIDATION BEFORE COMPLETE
+			if ((po instanceof MOrder || po instanceof MInvoice || po instanceof MPayment) && IEventTopics.DOC_BEFORE_PREPARE == type){ 
+				log.info(" topic="+event.getTopic()+" po="+po);
+				//SET VARIABLES FOR MATCHED BUDGETLINE PERCENT OR AMOUNT
+				String response = bg.eventPurchasesSales(po);			
+				if (response != null)
+					handleResponse(response, po);
+				}
 			
-		//JOURNAL DOCUMENT VALIDATION BEFORE COMPLETE
-		//BUDGET CONTROL OVER ACCOUNTING ELEMENT TO EITHER PERCENT OR AMOUNT
-		//ACCESS GL BUDGET LINES FOR MATCHING TO JOURNAL-LINES CRITERIA
-		else if (po instanceof MJournal && IEventTopics.DOC_BEFORE_COMPLETE == type 
-				&& po.get_Value(MJournal.COLUMNNAME_PostingType).equals(MJournal.POSTINGTYPE_Actual)){
-			log.info(" topic="+event.getTopic()+" po="+po);
-			//SET VARIABLES FOR MATCHED BUDGETLINE PERCENT OR AMOUNT
-			String response = bg.eventGLJournal((MJournal)po);
-			if (response != null)
-				handleResponse(response, po);
+			//JOURNAL DOCUMENT VALIDATION BEFORE COMPLETE
+			//BUDGET CONTROL OVER ACCOUNTING ELEMENT TO EITHER PERCENT OR AMOUNT
+			//ACCESS GL BUDGET LINES FOR MATCHING TO JOURNAL-LINES CRITERIA
+			else if (po instanceof MJournal && IEventTopics.DOC_BEFORE_COMPLETE == type 
+					&& po.get_Value(MJournal.COLUMNNAME_PostingType).equals(MJournal.POSTINGTYPE_Actual)){
+				log.info(" topic="+event.getTopic()+" po="+po);
+				//SET VARIABLES FOR MATCHED BUDGETLINE PERCENT OR AMOUNT
+				String response = bg.eventGLJournal((MJournal)po);
+				if (response != null)
+					handleResponse(response, po);
+			}
 		}
 	}
 
@@ -110,9 +117,25 @@ public class BudgetDocEvent extends AbstractEventHandler{
 			if (!(po instanceof MJournal) && po.get_ValueAsBoolean(MOrder.COLUMNNAME_IsSOTrx))
 				isSOTrx = true;
 		}			
-		if (BudgetUtils.budgetCONFIGinstance.isValid() && !isSOTrx) //only when Stop Excess? and is not Sales target
-			throw new AdempiereException(notice);
-		else {
+		// make it work with ZK webui -- Logilite
+		if (BudgetUtils.budgetCONFIGinstance.isValid()) {
+			try {
+				ClassLoader loader = Thread.currentThread()
+						.getContextClassLoader();
+				if (loader == null)
+					loader = BudgetDocEvent.class.getClassLoader();
+				Class<?> clazz = loader
+						.loadClass("org.adempiere.webui.window.FDialog");
+				Method m = clazz.getMethod("warn", Integer.TYPE, String.class);
+				m.invoke(null, 0, notice);
+				if(!isSOTrx && notice.contains("Short"))
+					throw new AdempiereException("Could not complete document, it exceeds defined Budget!");
+			} catch (Exception e) {
+				throw new AdempiereException(e);
+			}
+			//throw new AdempiereException(notice);
+		}
+		if(isSOTrx || !BudgetUtils.budgetCONFIGinstance.isValid()){
 			log.warning(notice);
 			MMessage msg = MMessage.get(po.getCtx(), "BudgetEvent");
 			MNote note = new MNote(po.getCtx(),

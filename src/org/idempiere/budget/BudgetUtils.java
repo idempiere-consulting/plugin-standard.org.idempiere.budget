@@ -25,11 +25,7 @@ import java.util.Calendar;
 import java.util.List;
 
 import org.adempiere.exceptions.AdempiereException;
-import org.compiere.model.MAccount;
-import org.idempiere.budget.MBudgetConfig;
-import org.idempiere.budget.MBudgetPlan;
-import org.idempiere.budget.MBudgetPlanLine;
-import org.idempiere.budget.MBudgetReference;
+import org.compiere.model.MConversionRate;
 import org.compiere.model.MElementValue;
 import org.compiere.model.MFactAcct;
 import org.compiere.model.MInvoice;
@@ -49,7 +45,6 @@ import org.compiere.util.CLogger;
 import org.compiere.util.Env;
 import org.compiere.util.KeyNamePair;
 import org.compiere.util.Msg;
-import org.idempiere.budget.SQLfromDoc;
 
 public class BudgetUtils{
 	public BudgetUtils(){
@@ -136,11 +131,24 @@ public class BudgetUtils{
 		pastMonth = presentMonth - 1;
 		//starting month
 		startMonth = presentMonth - previousMonths;
-		firstPeriodOfYear = (MPeriod.getFirstInYear(Env.getCtx(), po.getCreated(), po.getAD_Org_ID())).getC_Period_ID();
+		firstPeriodOfYear = (MPeriod.getFirstInYear(Env.getCtx(), setTimeToZero(po.getCreated()), po.getAD_Org_ID())).getC_Period_ID();
 		nowPeriodNo = presentMonth - firstPeriodOfYear; //Difference of IDs = exact PeriodNo (this month subtract first month).
 
 		log.finer("START YEAR: "+startYear+" START MONTH: "+startMonth+" PRESENT YEAR: "+presentYear+" PRESENT MONTH: "+presentMonth+" PAST YEAR: "+pastYear+" PAST MONTH: "+pastMonth);
 	}
+
+	/**
+	 * @param Date
+	 * @return
+	 */
+	private Timestamp setTimeToZero(Timestamp Date) {
+
+		Date.setHours(0);
+		Date.setMinutes(0);
+		Date.setSeconds(0);
+		Date.setNanos(0);
+		return Date;
+	} // setTimeToZero
 
 	/**
 	 * load config settings :
@@ -150,16 +158,19 @@ public class BudgetUtils{
 	public void initBudgetConfig(PO po){
  		log.fine("public void initBudgetConfig(");
  		mom = new ArrayList<Integer>();;//reset for MonthToMonth
-		budgetCONFIGinstance = new Query(po.getCtx(), MBudgetConfig.Table_Name, "", po.get_TrxName())
-		.firstOnly(); 
+		budgetCONFIGinstance = new Query(po.getCtx(), MBudgetConfig.Table_Name,
+				"", po.get_TrxName()).setOnlyActiveRecords(true).setClient_ID()
+				.firstOnly(); // select only active record for current client -- Logilite
+
 		//if budget module not active
 		if (budgetCONFIGinstance==null) throw new AdempiereException("NULL BUDGETCONFIG - YOU CAN STOP BUDGET MODULE");
 		if (!budgetCONFIGinstance.isActive()) 
 			throw new AdempiereException("NOT ACTIVE BUDGETCONFIG - YOU CAN STOP BUDGET MODULE");
 		//static instance of single target budget
- 		targetBudget = new Query(po.getCtx(), MBudgetPlan.Table_Name, MBudgetPlan.COLUMNNAME_GL_Budget_ID+"=?", po.get_TrxName())
- 			.setParameters(100) //TARGET BUDGET ID HARD CODED
- 			.setOnlyActiveRecords(true)
+		targetBudget = new Query(po.getCtx(), MBudgetPlan.Table_Name, "", po.get_TrxName())
+			.setOnlyActiveRecords(true)
+			//select only record for current client -- Logilite
+			.setClient_ID()	
  			.first();	 
 		//get revenue account element value
 		int revenueID = budgetCONFIGinstance.getAccount_ID();
@@ -169,6 +180,7 @@ public class BudgetUtils{
 		revenueKey = element.getValue(); 
 		//check BudgetPlan existence
 		MBudgetPlan plan = new Query(Env.getCtx(), MBudgetPlan.Table_Name, "",po.get_TrxName())
+			.setClient_ID()
 			.first();
 		if (plan==null)
 			throw new AdempiereException("Error - No Budget Plan - Please Set Up First.");
@@ -346,13 +358,15 @@ public class BudgetUtils{
 		if (po instanceof MOrder){
 			MOrderLine[]lines = ((MOrder) po).getLines();
 			for (MOrderLine line:lines){
-				total = total.add(line.getLineNetAmt()); 
+				total = total.add(convert(po,
+						line.getLineNetAmt(), ((MOrder) po).getC_Currency_ID())); 
 				}
 			}
 		else if (po instanceof MInvoice){
 			MInvoiceLine[]lines = ((MInvoice) po).getLines();
 			for (MInvoiceLine line:lines){ 
-				total = total.add(line.getLineNetAmt()); 
+				total = total.add(convert(po,
+						line.getLineNetAmt(), ((MInvoice) po).getC_Currency_ID())); 
 			}
 		}
 		return total;
@@ -371,7 +385,8 @@ public class BudgetUtils{
 				if (matched.getM_Product_ID()==line.getM_Product_ID()){
 					if (hasQty && matched.getQty().compareTo(Env.ZERO)>0)
 						figure = figure.add(line.getQtyOrdered());
-					else figure = figure.add(line.getLineNetAmt());
+					else figure = figure.add(convert (po,
+							line.getLineNetAmt(), ((MOrder) po).getC_Currency_ID()));
 					return matched;
 					}
 				}
@@ -382,7 +397,8 @@ public class BudgetUtils{
 					if (matched.getM_Product_ID()==line.getM_Product_ID()){
 						if (hasQty)
 							figure = figure.add(line.getQtyInvoiced());
-						else figure = figure.add(line.getLineNetAmt());
+						else figure = figure.add(convert (po,
+								line.getLineNetAmt(), ((MInvoice) po).getC_Currency_ID()));
 						return matched;
 					}
 				}
@@ -467,11 +483,12 @@ public class BudgetUtils{
 				MOrderLine[] lines = purchase.getLines();
 				for (MOrderLine line:lines){
 					if (po.getM_Product_ID()==line.getM_Product_ID())
-						figure = figure.add(getLineProdQtyAmt(line));
+						figure = figure.add(getLineProdQtyAmt(line, purchase.getC_Currency_ID()));
 				} 
 			}
 			else
-			totalAmt = totalAmt.add(purchase.getGrandTotal());
+				totalAmt = totalAmt.add(convert (po,
+					purchase.getTotalLines(), purchase.getC_Currency_ID()));
 		}
 		//handle other documents that does not overlap across other documents
 		if (budgetCONFIGinstance.isInvoiceToo())
@@ -488,10 +505,11 @@ public class BudgetUtils{
 					MInvoiceLine[] lines = invoice.getLines();
 					for (MInvoiceLine line:lines){
 						if (po.getM_Product_ID()==line.getM_Product_ID())
-							figure = figure.add(getLineProdQtyAmt(line));
+							figure = figure.add(getLineProdQtyAmt(line,invoice.getC_Currency_ID()));
 					} 
 				}else
-				totalAmt = totalAmt.add(invoice.getGrandTotal());
+					totalAmt = totalAmt.add(convert (po,
+						invoice.getTotalLines(), invoice.getC_Currency_ID()));
 			}
 		}
 		if (hasProduct)
@@ -506,7 +524,8 @@ public class BudgetUtils{
 			for (MPayment payment:allPayments){
 				if (payment.getC_Invoice_ID()>0 || payment.getC_Order_ID()>0) continue;
 				if (isPurchasing == payment.getC_DocType().isSOTrx()) continue;
-				totalAmt = totalAmt.add(payment.getPayAmt());
+					totalAmt = totalAmt.add(convert (po,
+						payment.getPayAmt(), payment.getC_Currency_ID()));
 			}
 		}
 		log.finer("TOTAL AMOUNT: "+totalAmt+" PO: "+po+" OPERAND: "+operand+" YEAR: "+year+" PERIOD VALUE: "+periodValue);
@@ -516,15 +535,31 @@ public class BudgetUtils{
 	 * @param po
 	 * @return
 	 */
-	private BigDecimal getLineProdQtyAmt(PO po) {
+	private BigDecimal getLineProdQtyAmt(PO po, int po_currency_id) {
 		log.fine("getLineProdQty");
 		log.finer("HAS QTY: "+hasQty);
 		if (hasQty){
-			return new BigDecimal(po.get_ValueAsInt(MInvoiceLine.COLUMNNAME_QtyEntered));
+			return (BigDecimal) po.get_Value(MInvoiceLine.COLUMNNAME_QtyEntered);
+
 		}
 		else
-			return (BigDecimal) po.get_Value(MOrderLine.COLUMNNAME_LineNetAmt);		
+			return convert (po,
+					(BigDecimal) po.get_Value(MOrderLine.COLUMNNAME_LineNetAmt), po_currency_id);
 	}
+
+	/**
+	 * @param po
+	 * @param amount
+	 * @param currencyId
+	 * @return
+	 */
+	private BigDecimal convert(PO po, BigDecimal amount, int currencyId) {
+		if(currencyId != targetBudget.getC_Currency_ID())
+			amount = MConversionRate.convert(po.getCtx(), amount, currencyId,
+					targetBudget.getC_Currency_ID(), null, 0, po.getAD_Client_ID(),
+					po.getAD_Org_ID());
+		return amount;
+	} //convert
 
 	/**get total amount for account element from factacct table 
 	 * revenueflag if on is for percentagebase either default revenue or specified in budget plan line
@@ -689,9 +724,9 @@ public class BudgetUtils{
 		log.finer("FACT: "+fact+" CREDIT? "+(matchedIsCreditAmt? "Y":"N")+"JournalLINE: "+jline);
 		if (fact!=null) {
 			if (matchedIsCreditAmt)
-				return fact.getAmtSourceCr();
+				return fact.getAmtAcctCr();
 			else 
-				return fact.getAmtSourceDr();
+				return fact.getAmtAcctDr();
 		}
 		else { 
 			if (matchedIsCreditAmt)
@@ -969,7 +1004,7 @@ public class BudgetUtils{
 	 */
 	private int createPeriodPointers(MBudgetPlanLine line){
 		log.fine("int createMonthToMonthList(MBudgetPlanLine line)");
-		firstPeriodOfYear = (MPeriod.getFirstInYear(line.getCtx(), line.getCreated(), line.getAD_Org_ID())).getC_Period_ID();
+		firstPeriodOfYear = (MPeriod.getFirstInYear(line.getCtx(), setTimeToZero(line.getCreated()), line.getAD_Org_ID())).getC_Period_ID();
 		//if previousYears = 0, startYear will be presentYear
 		List<MYear> years = new Query(line.getCtx(),MYear.Table_Name,MYear.COLUMNNAME_FiscalYear+" >= ?",line.get_TrxName())
 		.setParameters(startYear)
