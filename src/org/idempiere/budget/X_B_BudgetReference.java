@@ -26,14 +26,14 @@ import org.compiere.util.KeyNamePair;
 
 /** Generated Model for B_BudgetReference
  *  @author iDempiere (generated) 
- *  @version Release 2.0 - $Id$ */
+ *  @version Release 2.1 - $Id$ */
 public class X_B_BudgetReference extends PO implements I_B_BudgetReference, I_Persistent 
 {
 
 	/**
 	 *
 	 */
-	private static final long serialVersionUID = 20140702L;
+	private static final long serialVersionUID = 20150921L;
 
     /** Standard Constructor */
     public X_B_BudgetReference (Properties ctx, int B_BudgetReference_ID, String trxName)
@@ -317,51 +317,57 @@ public class X_B_BudgetReference extends PO implements I_B_BudgetReference, I_Pe
 		return (String)get_Value(COLUMNNAME_Operator);
 	}
 
-	public org.compiere.model.I_C_Period getPeriodF() throws RuntimeException
+	public org.compiere.model.I_C_Period getPeriodFrom() throws RuntimeException
     {
 		return (org.compiere.model.I_C_Period)MTable.get(getCtx(), org.compiere.model.I_C_Period.Table_Name)
-			.getPO(getPeriodFrom(), get_TrxName());	}
+			.getPO(getPeriodFrom_ID(), get_TrxName());	}
 
-	/** Set PeriodFrom.
-		@param PeriodFrom 
+	/** Set PeriodFrom_ID.
+		@param PeriodFrom_ID 
 		Starting Period of Fact Accts selected
 	  */
-	public void setPeriodFrom (int PeriodFrom)
+	public void setPeriodFrom_ID (int PeriodFrom_ID)
 	{
-		set_Value (COLUMNNAME_PeriodFrom, Integer.valueOf(PeriodFrom));
+		if (PeriodFrom_ID < 1) 
+			set_Value (COLUMNNAME_PeriodFrom_ID, null);
+		else 
+			set_Value (COLUMNNAME_PeriodFrom_ID, Integer.valueOf(PeriodFrom_ID));
 	}
 
-	/** Get PeriodFrom.
+	/** Get PeriodFrom_ID.
 		@return Starting Period of Fact Accts selected
 	  */
-	public int getPeriodFrom () 
+	public int getPeriodFrom_ID () 
 	{
-		Integer ii = (Integer)get_Value(COLUMNNAME_PeriodFrom);
+		Integer ii = (Integer)get_Value(COLUMNNAME_PeriodFrom_ID);
 		if (ii == null)
 			 return 0;
 		return ii.intValue();
 	}
 
-	public org.compiere.model.I_C_Period getPerio() throws RuntimeException
+	public org.compiere.model.I_C_Period getPeriodTo() throws RuntimeException
     {
 		return (org.compiere.model.I_C_Period)MTable.get(getCtx(), org.compiere.model.I_C_Period.Table_Name)
-			.getPO(getPeriodTo(), get_TrxName());	}
+			.getPO(getPeriodTo_ID(), get_TrxName());	}
 
-	/** Set PeriodTo.
-		@param PeriodTo 
+	/** Set PeriodTo_ID.
+		@param PeriodTo_ID 
 		End Period in Fact Accts selected
 	  */
-	public void setPeriodTo (int PeriodTo)
+	public void setPeriodTo_ID (int PeriodTo_ID)
 	{
-		set_Value (COLUMNNAME_PeriodTo, Integer.valueOf(PeriodTo));
+		if (PeriodTo_ID < 1) 
+			set_Value (COLUMNNAME_PeriodTo_ID, null);
+		else 
+			set_Value (COLUMNNAME_PeriodTo_ID, Integer.valueOf(PeriodTo_ID));
 	}
 
-	/** Get PeriodTo.
+	/** Get PeriodTo_ID.
 		@return End Period in Fact Accts selected
 	  */
-	public int getPeriodTo () 
+	public int getPeriodTo_ID () 
 	{
-		Integer ii = (Integer)get_Value(COLUMNNAME_PeriodTo);
+		Integer ii = (Integer)get_Value(COLUMNNAME_PeriodTo_ID);
 		if (ii == null)
 			 return 0;
 		return ii.intValue();

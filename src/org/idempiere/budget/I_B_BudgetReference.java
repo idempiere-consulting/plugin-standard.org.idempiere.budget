@@ -23,7 +23,7 @@ import org.compiere.util.KeyNamePair;
 
 /** Generated Interface for B_BudgetReference
  *  @author iDempiere (generated) 
- *  @version Release 2.0
+ *  @version Release 2.1
  */
 @SuppressWarnings("all")
 public interface I_B_BudgetReference 
@@ -224,35 +224,35 @@ public interface I_B_BudgetReference
 	/** Get Operator	  */
 	public String getOperator();
 
-    /** Column name PeriodFrom */
-    public static final String COLUMNNAME_PeriodFrom = "PeriodFrom";
+    /** Column name PeriodFrom_ID */
+    public static final String COLUMNNAME_PeriodFrom_ID = "PeriodFrom_ID";
 
-	/** Set PeriodFrom.
+	/** Set PeriodFrom_ID.
 	  * Starting Period of Fact Accts selected
 	  */
-	public void setPeriodFrom (int PeriodFrom);
+	public void setPeriodFrom_ID (int PeriodFrom_ID);
 
-	/** Get PeriodFrom.
+	/** Get PeriodFrom_ID.
 	  * Starting Period of Fact Accts selected
 	  */
-	public int getPeriodFrom();
+	public int getPeriodFrom_ID();
 
-	public org.compiere.model.I_C_Period getPeriodF() throws RuntimeException;
+	public org.compiere.model.I_C_Period getPeriodFrom() throws RuntimeException;
 
-    /** Column name PeriodTo */
-    public static final String COLUMNNAME_PeriodTo = "PeriodTo";
+    /** Column name PeriodTo_ID */
+    public static final String COLUMNNAME_PeriodTo_ID = "PeriodTo_ID";
 
-	/** Set PeriodTo.
+	/** Set PeriodTo_ID.
 	  * End Period in Fact Accts selected
 	  */
-	public void setPeriodTo (int PeriodTo);
+	public void setPeriodTo_ID (int PeriodTo_ID);
 
-	/** Get PeriodTo.
+	/** Get PeriodTo_ID.
 	  * End Period in Fact Accts selected
 	  */
-	public int getPeriodTo();
+	public int getPeriodTo_ID();
 
-	public org.compiere.model.I_C_Period getPerio() throws RuntimeException;
+	public org.compiere.model.I_C_Period getPeriodTo() throws RuntimeException;
 
     /** Column name Result */
     public static final String COLUMNNAME_Result = "Result";

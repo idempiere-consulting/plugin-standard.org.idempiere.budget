@@ -17,7 +17,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: RED1
 Bundle-SymbolicName: org.idempiere.budget;singleton:=true
-Bundle-Version: 1.0.2.qualifier
+Bundle-Version: 2.1.0.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-1.6
 Require-Bundle: org.adempiere.base;bundle-version="2.0.0",
  org.adempiere.plugin.utils;bundle-version="2.0.0"

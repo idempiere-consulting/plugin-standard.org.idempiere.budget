@@ -230,9 +230,9 @@ public class ImportBudget extends SvrProcess
 					MBudgetReference subref = new MBudgetReference(Env.getCtx(),0, get_TrxName());
 					subref.setOperator(imp.getOperator());
 					if (periodfrom>0)
-						subref.setPeriodFrom(periodfrom);
+						subref.setPeriodFrom_ID(periodfrom);
 					if (periodto>0)
-						subref.setPeriodTo(periodto);
+						subref.setPeriodTo_ID(periodto);
 					if (subaccount>0)
 						subref.setAccount_ID(subaccount);
 					subref.setAmount(imp.getSubAmount());

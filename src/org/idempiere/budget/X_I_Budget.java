@@ -25,14 +25,14 @@ import org.compiere.util.Env;
 
 /** Generated Model for I_Budget
  *  @author iDempiere (generated) 
- *  @version Release 2.0 - $Id$ */
+ *  @version Release 2.1 - $Id$ */
 public class X_I_Budget extends PO implements I_I_Budget, I_Persistent 
 {
 
 	/**
 	 *
 	 */
-	private static final long serialVersionUID = 20140702L;
+	private static final long serialVersionUID = 20150921L;
 
     /** Standard Constructor */
     public X_I_Budget (Properties ctx, int I_Budget_ID, String trxName)

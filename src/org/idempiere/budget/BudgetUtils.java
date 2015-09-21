@@ -938,8 +938,8 @@ public class BudgetUtils{
 		String operator = ref.getOperator();
 		if (operator==null) operator = "";
 		int account = ref.getAccount_ID();
-		int from = ref.getPeriodFrom();
-		int to = ref.getPeriodTo();
+		int from = ref.getPeriodFrom_ID();
+		int to = ref.getPeriodTo_ID();
 		int C_Project_ID = ref.getC_Project_ID();
 		StringBuffer whereClause = new StringBuffer();
 		ArrayList<Object> params = new ArrayList<Object>();
