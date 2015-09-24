@@ -5,8 +5,8 @@ import java.sql.ResultSet;
 import java.util.logging.Level;
 
 import org.adempiere.base.IDocFactory;
+import org.budget.acct.Doc_BudgetPeriod;
 import org.compiere.acct.Doc;
-import org.compiere.acct.Doc_BudgetPeriod;
 import org.compiere.model.MAcctSchema;
 import org.compiere.model.MTable;
 import org.compiere.util.CLogger;

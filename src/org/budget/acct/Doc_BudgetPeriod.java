@@ -1,10 +1,14 @@
-package org.compiere.acct;
+package org.budget.acct;
 
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.logging.Level;
 
+import org.compiere.acct.Doc;
+import org.compiere.acct.DocLine;
+import org.compiere.acct.Fact;
+import org.compiere.acct.FactLine;
 import org.compiere.model.MAccount;
 import org.compiere.model.MAcctSchema;
 import org.compiere.util.Env;
