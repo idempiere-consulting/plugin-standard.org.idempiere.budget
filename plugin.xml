@@ -49,5 +49,12 @@
             class="org.idempiere.budget.CalculateBudget">
       </process>
    </extension>
+   <extension
+         id="org.idempiere.budget.GenerateBudget2SalesForecast"
+         point="org.adempiere.base.Process">
+      <process
+            class="org.idempiere.budget.GenerateBudget2SalesForecast">
+      </process>
+   </extension>
 
 </plugin>

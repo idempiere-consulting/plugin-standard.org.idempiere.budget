@@ -1,5 +1,6 @@
 package org.idempiere.budget;
 
+import java.sql.Timestamp;
 import java.util.List;
 
 import org.compiere.model.MCalendar;
@@ -25,8 +26,7 @@ public class GenerateBudget2SalesForecast extends SvrProcess{
 	protected String doIt() throws Exception {
 		String whereClause = "EXISTS (SELECT T_Selection_ID FROM T_Selection WHERE  T_Selection.AD_PInstance_ID=? " +
 				"AND T_Selection.T_Selection_ID=B_BudgetPlanLine.B_BudgetPlanLine_ID)";		
-		
-
+ 
 		List<MBudgetPlanLine> lines = new Query(Env.getCtx(),MBudgetPlanLine.Table_Name,whereClause,get_TrxName())
 		.setClient_ID()
 		.setParameters(new Object[]{getAD_PInstance_ID()	})
@@ -42,13 +42,16 @@ public class GenerateBudget2SalesForecast extends SvrProcess{
 		MPeriod period = MPeriod.findByCalendar(Env.getCtx(), header.getCreated(), calendar.getC_Calendar_ID(), get_TrxName());
 		header.setC_Year_ID(period.getC_Year_ID());
 		header.saveEx(get_TrxName());
-		
+		int noperiod = 0;
+		int nobp = 0;
+		int noqty = 0;
+		int cnt = 0;
 		for (MBudgetPlanLine line:lines){
 			MForecastLine forecastline = new MForecastLine(Env.getCtx(),0,get_TrxName());
 			forecastline.setM_Forecast_ID(header.getM_Forecast_ID());
-			int cnt = 0;
-			//DatePromised remains same throughout even till PO. only lead time (order date) is changed (see further below).
-			forecastline.setDatePromised(null);		
+
+			//DatePromised taken from Budget Plan Line Period if any.
+			forecastline.setDatePromised(line.getC_Period().getStartDate());		
 			//check qty not to be zero
  			//set Qty with Reserved/Ordered from future orders by DatePromised
 			forecastline.setQty(line.getQty()); 
@@ -58,10 +61,15 @@ public class GenerateBudget2SalesForecast extends SvrProcess{
 			forecastline.setC_Period_ID(line.getC_Period_ID());
 			forecastline.setM_Warehouse_ID(0);
 			forecastline.saveEx(get_TrxName());
+			
+			//checking counters
+			cnt++;
+			if (line.getC_Period_ID()==0 || line.getC_Period()==null) noperiod++;
+			if (line.getC_BPartner_ID()==0 || line.getC_BPartner()==null) nobp++;
+			if (line.getQty()==Env.ZERO) noqty++;
 		}
+		return "Total Sales Forecast Lines = "+cnt+", No Qty = "+noqty+", No Period = "+noperiod+", No Customer = "+nobp;
 
-		
-		return "@DocumentNo@ ";
 	}
 
 }
