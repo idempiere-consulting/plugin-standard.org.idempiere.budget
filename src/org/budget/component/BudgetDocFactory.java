@@ -1,4 +1,4 @@
-package org.idempiere.component;
+package org.budget.component;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;

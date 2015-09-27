@@ -14,7 +14,7 @@
  *  @author Redhuan D. Oon  - red1@red1.org  www.red1.org                     *
  *****************************************************************************/
 
-package org.idempiere.component;
+package org.budget.component;
 
 import java.sql.ResultSet;
 
