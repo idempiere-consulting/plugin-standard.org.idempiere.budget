@@ -4,12 +4,13 @@ import java.sql.Timestamp;
 import java.util.List;
 
 import org.compiere.model.MCalendar;
-import org.compiere.model.MForecast;
-import org.compiere.model.MForecastLine;
+import org.compiere.model.MForecast; 
 import org.compiere.model.MPeriod;
+import org.compiere.model.MWarehouse;
 import org.compiere.model.Query;
 import org.compiere.process.SvrProcess;
-import org.compiere.util.Env; 
+import org.compiere.util.Env;
+import org.purchasing.model.MForecastLine;
 
 /**
  * Generate Purchase Orders in bulk (refer another class that handles InfoWindow process T_selection records to generate)
@@ -36,7 +37,7 @@ public class GenerateBudget2SalesForecast extends SvrProcess{
 		
 		MCalendar calendar = MCalendar.getDefault(Env.getCtx());
 		//create Sales Forecast header with each line included
-		MForecast header = new MForecast(Env.getCtx(), 0, null); 
+		MForecast header = new MForecast(Env.getCtx(), 0, get_TrxName()); 
 		header.setName("PO Forecast from SalesForecast"); 
 		header.setC_Calendar_ID(calendar.getC_Calendar_ID());
 		MPeriod period = MPeriod.findByCalendar(Env.getCtx(), header.getCreated(), calendar.getC_Calendar_ID(), get_TrxName());
@@ -51,15 +52,21 @@ public class GenerateBudget2SalesForecast extends SvrProcess{
 			forecastline.setM_Forecast_ID(header.getM_Forecast_ID());
 
 			//DatePromised taken from Budget Plan Line Period if any.
-			forecastline.setDatePromised(line.getC_Period().getStartDate());		
+			Timestamp datepromised = line.getC_Period().getStartDate();
+			if (datepromised==null) {
+				java.util.Date date = new java.util.Date();
+				datepromised = new Timestamp(date.getTime());
+			}
+			forecastline.setDatePromised(datepromised);		
 			//check qty not to be zero
  			//set Qty with Reserved/Ordered from future orders by DatePromised
 			forecastline.setQty(line.getQty()); 
-			
+			//set warehouse from org
+			MWarehouse[] wh = MWarehouse.getForOrg(Env.getCtx(), line.getAD_Org_ID());
 			//set product and save
 			forecastline.setM_Product_ID(line.getM_Product_ID());
 			forecastline.setC_Period_ID(line.getC_Period_ID());
-			forecastline.setM_Warehouse_ID(0);
+			forecastline.setM_Warehouse_ID(wh[0].get_ID());
 			forecastline.saveEx(get_TrxName());
 			
 			//checking counters

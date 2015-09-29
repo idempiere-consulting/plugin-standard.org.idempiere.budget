@@ -20,7 +20,8 @@ Bundle-SymbolicName: org.idempiere.budget;singleton:=true
 Bundle-Version: 2.1.0.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-1.6
 Require-Bundle: org.adempiere.base;bundle-version="2.0.0",
- org.adempiere.plugin.utils;bundle-version="2.0.0"
+ org.adempiere.plugin.utils;bundle-version="2.0.0",
+ org.purchasing.forecast;bundle-version="2.1.0"
 Service-Component: OSGI-INF/BudgetModelFactory.xml, OSGI-INF/BudgetDocEvent.xml,
  OSGI-INF/BudgetDocFactory.xml
 Import-Package: org.adempiere.webui.panel,
