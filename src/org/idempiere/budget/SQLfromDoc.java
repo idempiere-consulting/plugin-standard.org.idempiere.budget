@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
+import org.adempiere.exceptions.AdempiereException;
 import org.compiere.model.I_C_Order;
 import org.compiere.model.I_GL_Journal;
 import org.compiere.model.I_GL_JournalLine;
@@ -41,6 +42,7 @@ public class SQLfromDoc {
 	private List<Object> whereMatchesIDs = new ArrayList<Object>(); 
 	PO po = null;
 	private int previousMonths;
+	private MPeriod 	period = null;
 	
 	public SQLfromDoc(PO po, int previousMonths){
 		this.po = po; 
@@ -207,7 +209,17 @@ public class SQLfromDoc {
 		}
 		else {//for all DocType - Purchase, Invoice and Payment
 			//period id for present month. removed for rematch in budget rules
-			int Period_ID = (MPeriod.get(po.getCtx(), po.getCreated(),po.getAD_Org_ID())).getC_Period_ID();
+		//	int Period_ID = (MPeriod.get(po.getCtx(), po.getCreated(),po.getAD_Org_ID())).getC_Period_ID();
+	//ID_Consulting 2021-05-17 - ERRORE Null ponter se periodo Non presente, corretto
+			period = MPeriod.get(po.getCtx(), po.getCreated(),po.getAD_Org_ID(),(String)null);
+			int Period_ID =0;
+			if (period!=null) {
+				Period_ID = period.getC_Period_ID();
+			} else {
+				throw new AdempiereException("Periodo non presente! Potrebbe essere necessario aprire il periodo contabile");
+			}
+	//ID_Consulting 2021-05-17 -------------------END
+	//		
 			matches.add(new KeyNamePair(Period_ID,"C_Period_ID"));
 			//AD_Org_ID handling same as Period ID
 			matches.add(new KeyNamePair(po.getAD_Org_ID(),"AD_OrgDoc_ID"));
